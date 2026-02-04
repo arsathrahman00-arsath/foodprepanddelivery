@@ -92,10 +92,10 @@ const LocationForm: React.FC = () => {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="masjid_name">Location Name *</Label>
+                <Label htmlFor="masjid_name">masjid_name *</Label>
                 <Input
                   id="masjid_name"
-                  placeholder="Enter location name"
+                  placeholder="Enter masjid name"
                   {...form.register("masjid_name")}
                   className="h-11"
                 />
@@ -105,10 +105,10 @@ const LocationForm: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="masjid_code">Location Code *</Label>
+                <Label htmlFor="masjid_code">masjid_code *</Label>
                 <Input
                   id="masjid_code"
-                  placeholder="Enter location code"
+                  placeholder="Enter masjid code"
                   {...form.register("masjid_code")}
                   className="h-11"
                 />
