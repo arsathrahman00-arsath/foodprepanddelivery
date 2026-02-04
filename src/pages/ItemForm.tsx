@@ -5,10 +5,10 @@ import ItemFormFields from "@/components/forms/ItemFormFields";
 import { itemApi } from "@/lib/api";
 
 const columns = [
-  { key: "item_name", label: "item_name" },
-  { key: "cat_name", label: "cat_name" },
-  { key: "unit_short", label: "unit_short" },
-  { key: "created_by", label: "created_by" },
+  { key: "item_name", label: "Item Name" },
+  { key: "cat_name", label: "Category Name" },
+  { key: "unit_short", label: "Unit Short" },
+  { key: "created_by", label: "Created By" },
 ];
 
 const ItemPage: React.FC = () => {

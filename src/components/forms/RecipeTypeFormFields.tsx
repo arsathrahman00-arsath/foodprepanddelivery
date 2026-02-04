@@ -11,7 +11,6 @@ import { recipeTypeApi } from "@/lib/api";
 
 const schema = z.object({
   recipe_type: z.string().min(1, "Required").max(50),
-  recipe_code: z.string().min(1, "Required").max(20),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -28,7 +27,7 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { recipe_type: "", recipe_code: "" },
+    defaultValues: { recipe_type: "" },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -37,7 +36,6 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
     try {
       const response = await recipeTypeApi.create({
         recipe_type: data.recipe_type,
-        recipe_code: data.recipe_code,
         created_by: user?.user_name || "",
       });
 
@@ -61,31 +59,17 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
           {error}
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="recipe_type">recipe_type *</Label>
-          <Input
-            id="recipe_type"
-            placeholder="e.g., Breakfast, Lunch"
-            {...form.register("recipe_type")}
-            className="h-10"
-          />
-          {form.formState.errors.recipe_type && (
-            <p className="text-xs text-destructive">{form.formState.errors.recipe_type.message}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="recipe_code">recipe_code *</Label>
-          <Input
-            id="recipe_code"
-            placeholder="Enter recipe code"
-            {...form.register("recipe_code")}
-            className="h-10"
-          />
-          {form.formState.errors.recipe_code && (
-            <p className="text-xs text-destructive">{form.formState.errors.recipe_code.message}</p>
-          )}
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="recipe_type">Recipe Type *</Label>
+        <Input
+          id="recipe_type"
+          placeholder="e.g., Breakfast, Lunch"
+          {...form.register("recipe_type")}
+          className="h-10"
+        />
+        {form.formState.errors.recipe_type && (
+          <p className="text-xs text-destructive">{form.formState.errors.recipe_type.message}</p>
+        )}
       </div>
       <div className="pt-2">
         <Button type="submit" className="bg-gradient-warm hover:opacity-90 gap-2 w-full" disabled={isLoading}>

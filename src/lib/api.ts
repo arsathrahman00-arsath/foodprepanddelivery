@@ -75,7 +75,6 @@ export const authApi = {
 export const locationApi = {
   create: (data: {
     masjid_name: string;
-    masjid_code: string;
     address: string;
     city: string;
     created_by: string;
@@ -88,7 +87,6 @@ export const locationApi = {
 export const itemCategoryApi = {
   create: (data: {
     cat_name: string;
-    cat_code: string;
     created_by: string;
   }) => postFormData("/masteritemcategory/", data),
   
@@ -99,7 +97,6 @@ export const itemCategoryApi = {
 export const unitApi = {
   create: (data: {
     unit_name: string;
-    unit_code: string;
     unit_short: string;
     created_by: string;
   }) => postFormData("/masterunit/", data),
@@ -111,7 +108,6 @@ export const unitApi = {
 export const itemApi = {
   create: (data: {
     item_name: string;
-    item_code: string;
     cat_name: string;
     unit_short: string;
     created_by: string;
@@ -124,7 +120,6 @@ export const itemApi = {
 export const supplierApi = {
   create: (data: {
     sup_name: string;
-    sup_code: string;
     sup_add: string;
     sup_city: string;
     sup_mobile: string;
@@ -138,7 +133,6 @@ export const supplierApi = {
 export const recipeTypeApi = {
   create: (data: {
     recipe_type: string;
-    recipe_code: string;
     created_by: string;
   }) => postFormData("/masterrecipttype/", data),
   
@@ -152,10 +146,7 @@ export const recipeApi = {
     req_qty: string;
     recipe_type: string;
     recipe_name: string;
-    recipe_code: string;
     item_name: string;
-    item_code: string;
-    cat_code: string;
     created_by: string;
   }) => postFormData("/masterrecipe/", data),
   

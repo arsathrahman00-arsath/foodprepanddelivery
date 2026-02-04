@@ -5,9 +5,9 @@ import UnitFormFields from "@/components/forms/UnitFormFields";
 import { unitApi } from "@/lib/api";
 
 const columns = [
-  { key: "unit_name", label: "unit_name" },
-  { key: "unit_short", label: "unit_short" },
-  { key: "created_by", label: "created_by" },
+  { key: "unit_name", label: "Unit Name" },
+  { key: "unit_short", label: "Unit Short" },
+  { key: "created_by", label: "Created By" },
 ];
 
 const UnitPage: React.FC = () => {

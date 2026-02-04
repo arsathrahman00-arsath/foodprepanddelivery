@@ -11,7 +11,6 @@ import { itemApi } from "@/lib/api";
 
 const schema = z.object({
   item_name: z.string().min(1, "Required").max(100),
-  item_code: z.string().min(1, "Required").max(20),
   cat_name: z.string().min(1, "Required").max(100),
   unit_short: z.string().min(1, "Required").max(10),
 });
@@ -30,7 +29,7 @@ const ItemFormFields: React.FC<Props> = ({ onSuccess }) => {
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { item_name: "", item_code: "", cat_name: "", unit_short: "" },
+    defaultValues: { item_name: "", cat_name: "", unit_short: "" },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -39,7 +38,6 @@ const ItemFormFields: React.FC<Props> = ({ onSuccess }) => {
     try {
       const response = await itemApi.create({
         item_name: data.item_name,
-        item_code: data.item_code,
         cat_name: data.cat_name,
         unit_short: data.unit_short,
         created_by: user?.user_name || "",
@@ -65,35 +63,21 @@ const ItemFormFields: React.FC<Props> = ({ onSuccess }) => {
           {error}
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="item_name">item_name *</Label>
-          <Input
-            id="item_name"
-            placeholder="Enter item name"
-            {...form.register("item_name")}
-            className="h-10"
-          />
-          {form.formState.errors.item_name && (
-            <p className="text-xs text-destructive">{form.formState.errors.item_name.message}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="item_code">item_code *</Label>
-          <Input
-            id="item_code"
-            placeholder="Enter item code"
-            {...form.register("item_code")}
-            className="h-10"
-          />
-          {form.formState.errors.item_code && (
-            <p className="text-xs text-destructive">{form.formState.errors.item_code.message}</p>
-          )}
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="item_name">Item Name *</Label>
+        <Input
+          id="item_name"
+          placeholder="Enter item name"
+          {...form.register("item_name")}
+          className="h-10"
+        />
+        {form.formState.errors.item_name && (
+          <p className="text-xs text-destructive">{form.formState.errors.item_name.message}</p>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="cat_name">cat_name *</Label>
+          <Label htmlFor="cat_name">Category Name *</Label>
           <Input
             id="cat_name"
             placeholder="Enter category name"
@@ -105,7 +89,7 @@ const ItemFormFields: React.FC<Props> = ({ onSuccess }) => {
           )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="unit_short">unit_short *</Label>
+          <Label htmlFor="unit_short">Unit Short *</Label>
           <Input
             id="unit_short"
             placeholder="e.g., kg, g, l"

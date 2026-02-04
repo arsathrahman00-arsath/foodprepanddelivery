@@ -11,7 +11,6 @@ import { supplierApi } from "@/lib/api";
 
 const schema = z.object({
   sup_name: z.string().min(1, "Required").max(100),
-  sup_code: z.string().min(1, "Required").max(20),
   sup_add: z.string().min(1, "Required").max(200),
   sup_city: z.string().min(1, "Required").max(50),
   sup_mobile: z.string().min(10, "Min 10 digits").max(15).regex(/^\d+$/, "Digits only"),
@@ -31,7 +30,7 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { sup_name: "", sup_code: "", sup_add: "", sup_city: "", sup_mobile: "" },
+    defaultValues: { sup_name: "", sup_add: "", sup_city: "", sup_mobile: "" },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -40,7 +39,6 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
     try {
       const response = await supplierApi.create({
         sup_name: data.sup_name,
-        sup_code: data.sup_code,
         sup_add: data.sup_add,
         sup_city: data.sup_city,
         sup_mobile: data.sup_mobile,
@@ -67,34 +65,20 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
           {error}
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="sup_name">sup_name *</Label>
-          <Input
-            id="sup_name"
-            placeholder="Enter supplier name"
-            {...form.register("sup_name")}
-            className="h-10"
-          />
-          {form.formState.errors.sup_name && (
-            <p className="text-xs text-destructive">{form.formState.errors.sup_name.message}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="sup_code">sup_code *</Label>
-          <Input
-            id="sup_code"
-            placeholder="Enter supplier code"
-            {...form.register("sup_code")}
-            className="h-10"
-          />
-          {form.formState.errors.sup_code && (
-            <p className="text-xs text-destructive">{form.formState.errors.sup_code.message}</p>
-          )}
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="sup_name">Supplier Name *</Label>
+        <Input
+          id="sup_name"
+          placeholder="Enter supplier name"
+          {...form.register("sup_name")}
+          className="h-10"
+        />
+        {form.formState.errors.sup_name && (
+          <p className="text-xs text-destructive">{form.formState.errors.sup_name.message}</p>
+        )}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="sup_add">sup_add *</Label>
+        <Label htmlFor="sup_add">Address *</Label>
         <Input
           id="sup_add"
           placeholder="Enter address"
@@ -107,7 +91,7 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="sup_city">sup_city *</Label>
+          <Label htmlFor="sup_city">City *</Label>
           <Input
             id="sup_city"
             placeholder="Enter city"
@@ -119,7 +103,7 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
           )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="sup_mobile">sup_mobile *</Label>
+          <Label htmlFor="sup_mobile">Mobile *</Label>
           <Input
             id="sup_mobile"
             placeholder="Enter mobile number"

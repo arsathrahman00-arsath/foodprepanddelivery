@@ -5,12 +5,12 @@ import RecipeFormFields from "@/components/forms/RecipeFormFields";
 import { recipeApi } from "@/lib/api";
 
 const columns = [
-  { key: "recipe_name", label: "recipe_name" },
-  { key: "recipe_type", label: "recipe_type" },
-  { key: "item_name", label: "item_name" },
-  { key: "unit_short", label: "unit_short" },
-  { key: "req_qty", label: "req_qty" },
-  { key: "created_by", label: "created_by" },
+  { key: "recipe_name", label: "Recipe Name" },
+  { key: "recipe_type", label: "Recipe Type" },
+  { key: "item_name", label: "Item Name" },
+  { key: "unit_short", label: "Unit" },
+  { key: "req_qty", label: "Required Qty" },
+  { key: "created_by", label: "Created By" },
 ];
 
 const RecipePage: React.FC = () => {

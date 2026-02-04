@@ -11,7 +11,6 @@ import { unitApi } from "@/lib/api";
 
 const schema = z.object({
   unit_name: z.string().min(1, "Required").max(50),
-  unit_code: z.string().min(1, "Required").max(20),
   unit_short: z.string().min(1, "Required").max(10),
 });
 
@@ -29,7 +28,7 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { unit_name: "", unit_code: "", unit_short: "" },
+    defaultValues: { unit_name: "", unit_short: "" },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -38,7 +37,6 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
     try {
       const response = await unitApi.create({
         unit_name: data.unit_name,
-        unit_code: data.unit_code,
         unit_short: data.unit_short,
         created_by: user?.user_name || "",
       });
@@ -64,7 +62,7 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
         </div>
       )}
       <div className="space-y-2">
-        <Label htmlFor="unit_name">unit_name *</Label>
+        <Label htmlFor="unit_name">Unit Name *</Label>
         <Input
           id="unit_name"
           placeholder="e.g., Kilogram"
@@ -75,31 +73,17 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
           <p className="text-xs text-destructive">{form.formState.errors.unit_name.message}</p>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="unit_code">unit_code *</Label>
-          <Input
-            id="unit_code"
-            placeholder="Enter unit code"
-            {...form.register("unit_code")}
-            className="h-10"
-          />
-          {form.formState.errors.unit_code && (
-            <p className="text-xs text-destructive">{form.formState.errors.unit_code.message}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="unit_short">unit_short *</Label>
-          <Input
-            id="unit_short"
-            placeholder="e.g., kg, g, l"
-            {...form.register("unit_short")}
-            className="h-10"
-          />
-          {form.formState.errors.unit_short && (
-            <p className="text-xs text-destructive">{form.formState.errors.unit_short.message}</p>
-          )}
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="unit_short">Unit Short *</Label>
+        <Input
+          id="unit_short"
+          placeholder="e.g., kg, g, l"
+          {...form.register("unit_short")}
+          className="h-10"
+        />
+        {form.formState.errors.unit_short && (
+          <p className="text-xs text-destructive">{form.formState.errors.unit_short.message}</p>
+        )}
       </div>
       <div className="pt-2">
         <Button type="submit" className="bg-gradient-warm hover:opacity-90 gap-2 w-full" disabled={isLoading}>

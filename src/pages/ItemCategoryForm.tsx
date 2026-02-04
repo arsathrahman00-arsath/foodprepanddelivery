@@ -5,8 +5,8 @@ import ItemCategoryFormFields from "@/components/forms/ItemCategoryFormFields";
 import { itemCategoryApi } from "@/lib/api";
 
 const columns = [
-  { key: "cat_name", label: "cat_name" },
-  { key: "created_by", label: "created_by" },
+  { key: "cat_name", label: "Category Name" },
+  { key: "created_by", label: "Created By" },
 ];
 
 const ItemCategoryPage: React.FC = () => {

@@ -5,10 +5,10 @@ import LocationFormFields from "@/components/forms/LocationFormFields";
 import { locationApi } from "@/lib/api";
 
 const columns = [
-  { key: "masjid_name", label: "masjid_name" },
-  { key: "address", label: "address" },
-  { key: "city", label: "city" },
-  { key: "created_by", label: "created_by" },
+  { key: "masjid_name", label: "Masjid Name" },
+  { key: "address", label: "Address" },
+  { key: "city", label: "City" },
+  { key: "created_by", label: "Created By" },
 ];
 
 const LocationPage: React.FC = () => {

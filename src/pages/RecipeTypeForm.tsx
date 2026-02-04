@@ -5,8 +5,8 @@ import RecipeTypeFormFields from "@/components/forms/RecipeTypeFormFields";
 import { recipeTypeApi } from "@/lib/api";
 
 const columns = [
-  { key: "recipe_type", label: "recipe_type" },
-  { key: "created_by", label: "created_by" },
+  { key: "recipe_type", label: "Recipe Type" },
+  { key: "created_by", label: "Created By" },
 ];
 
 const RecipeTypePage: React.FC = () => {

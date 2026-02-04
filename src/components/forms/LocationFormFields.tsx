@@ -11,7 +11,6 @@ import { locationApi } from "@/lib/api";
 
 const locationSchema = z.object({
   masjid_name: z.string().min(1, "Required").max(100),
-  masjid_code: z.string().min(1, "Required").max(20),
   address: z.string().min(1, "Required").max(200),
   city: z.string().min(1, "Required").max(50),
 });
@@ -30,7 +29,7 @@ const LocationFormFields: React.FC<Props> = ({ onSuccess }) => {
 
   const form = useForm<LocationFormData>({
     resolver: zodResolver(locationSchema),
-    defaultValues: { masjid_name: "", masjid_code: "", address: "", city: "" },
+    defaultValues: { masjid_name: "", address: "", city: "" },
   });
 
   const onSubmit = async (data: LocationFormData) => {
@@ -39,7 +38,6 @@ const LocationFormFields: React.FC<Props> = ({ onSuccess }) => {
     try {
       const response = await locationApi.create({
         masjid_name: data.masjid_name,
-        masjid_code: data.masjid_code,
         address: data.address,
         city: data.city,
         created_by: user?.user_name || "",
@@ -65,34 +63,20 @@ const LocationFormFields: React.FC<Props> = ({ onSuccess }) => {
           {error}
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="masjid_name">masjid_name *</Label>
-          <Input
-            id="masjid_name"
-            placeholder="Enter masjid name"
-            {...form.register("masjid_name")}
-            className="h-10"
-          />
-          {form.formState.errors.masjid_name && (
-            <p className="text-xs text-destructive">{form.formState.errors.masjid_name.message}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="masjid_code">masjid_code *</Label>
-          <Input
-            id="masjid_code"
-            placeholder="Enter masjid code"
-            {...form.register("masjid_code")}
-            className="h-10"
-          />
-          {form.formState.errors.masjid_code && (
-            <p className="text-xs text-destructive">{form.formState.errors.masjid_code.message}</p>
-          )}
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="masjid_name">Masjid Name *</Label>
+        <Input
+          id="masjid_name"
+          placeholder="Enter masjid name"
+          {...form.register("masjid_name")}
+          className="h-10"
+        />
+        {form.formState.errors.masjid_name && (
+          <p className="text-xs text-destructive">{form.formState.errors.masjid_name.message}</p>
+        )}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="address">address *</Label>
+        <Label htmlFor="address">Address *</Label>
         <Input
           id="address"
           placeholder="Enter address"
@@ -104,7 +88,7 @@ const LocationFormFields: React.FC<Props> = ({ onSuccess }) => {
         )}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="city">city *</Label>
+        <Label htmlFor="city">City *</Label>
         <Input
           id="city"
           placeholder="Enter city"
