@@ -81,7 +81,7 @@ export const locationApi = {
     created_by: string;
   }) => postFormData("/masterlocation/", data),
   
-  getAll: () => getData("/masterlocation/"),
+  getAll: () => getData("/get_masterlocation/"),
 };
 
 // Item Category endpoints
@@ -92,7 +92,7 @@ export const itemCategoryApi = {
     created_by: string;
   }) => postFormData("/masteritemcategory/", data),
   
-  getAll: () => getData("/masteritemcategory/"),
+  getAll: () => getData("/get_masteritemcategory/"),
 };
 
 // Unit endpoints
@@ -104,7 +104,7 @@ export const unitApi = {
     created_by: string;
   }) => postFormData("/masterunit/", data),
   
-  getAll: () => getData("/masterunit/"),
+  getAll: () => getData("/get_masterunit/"),
 };
 
 // Item endpoints
@@ -117,7 +117,7 @@ export const itemApi = {
     created_by: string;
   }) => postFormData("/masteritem/", data),
   
-  getAll: () => getData("/masteritem/"),
+  getAll: () => getData("/get_masteritem/"),
 };
 
 // Supplier endpoints
@@ -131,7 +131,7 @@ export const supplierApi = {
     created_by: string;
   }) => postFormData("/mastersupplier/", data),
   
-  getAll: () => getData("/mastersupplier/"),
+  getAll: () => getData("/get_mastersupplier/"),
 };
 
 // Recipe Type endpoints
@@ -142,7 +142,7 @@ export const recipeTypeApi = {
     created_by: string;
   }) => postFormData("/masterrecipttype/", data),
   
-  getAll: () => getData("/masterrecipttype/"),
+  getAll: () => getData("/get_masterrecipttype/"),
 };
 
 // Recipe endpoints
@@ -159,5 +159,5 @@ export const recipeApi = {
     created_by: string;
   }) => postFormData("/masterrecipe/", data),
   
-  getAll: () => getData("/masterrecipe/"),
+  getAll: () => getData("/get_masterrecipe/"),
 };
