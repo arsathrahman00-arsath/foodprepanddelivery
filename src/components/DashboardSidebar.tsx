@@ -1,5 +1,5 @@
-import React from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   ChefHat,
   MapPin,
@@ -12,10 +12,17 @@ import {
   LogOut,
   LayoutDashboard,
   User,
+  ChevronDown,
+  Database,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface NavItemProps {
   to: string;
@@ -38,20 +45,24 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label }) => (
   </NavLink>
 );
 
-const menuItems = [
-  { to: "/dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: "Dashboard" },
-  { to: "/dashboard/location", icon: <MapPin className="w-5 h-5" />, label: "Location" },
-  { to: "/dashboard/item-category", icon: <Tag className="w-5 h-5" />, label: "Item Category" },
-  { to: "/dashboard/unit", icon: <Ruler className="w-5 h-5" />, label: "Unit" },
-  { to: "/dashboard/item", icon: <Package className="w-5 h-5" />, label: "Item" },
-  { to: "/dashboard/supplier", icon: <Truck className="w-5 h-5" />, label: "Supplier" },
-  { to: "/dashboard/recipe-type", icon: <BookOpen className="w-5 h-5" />, label: "Recipe Type" },
-  { to: "/dashboard/recipe", icon: <UtensilsCrossed className="w-5 h-5" />, label: "Recipe" },
+const masterMenuItems = [
+  { to: "/dashboard/location", icon: <MapPin className="w-4 h-4" />, label: "Location" },
+  { to: "/dashboard/item-category", icon: <Tag className="w-4 h-4" />, label: "Item Category" },
+  { to: "/dashboard/unit", icon: <Ruler className="w-4 h-4" />, label: "Unit" },
+  { to: "/dashboard/item", icon: <Package className="w-4 h-4" />, label: "Item" },
+  { to: "/dashboard/supplier", icon: <Truck className="w-4 h-4" />, label: "Supplier" },
+  { to: "/dashboard/recipe-type", icon: <BookOpen className="w-4 h-4" />, label: "Recipe Type" },
+  { to: "/dashboard/recipe", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Recipe" },
 ];
 
 const DashboardSidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if any master submenu is active
+  const isMasterActive = masterMenuItems.some(item => location.pathname === item.to);
+  const [isMasterOpen, setIsMasterOpen] = useState(isMasterActive);
 
   const handleLogout = () => {
     logout();
@@ -75,9 +86,52 @@ const DashboardSidebar: React.FC = () => {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => (
-          <NavItem key={item.to} {...item} />
-        ))}
+        {/* Dashboard Link */}
+        <NavItem 
+          to="/dashboard" 
+          icon={<LayoutDashboard className="w-5 h-5" />} 
+          label="Dashboard" 
+        />
+        
+        {/* Master Menu with Submenu */}
+        <Collapsible open={isMasterOpen} onOpenChange={setIsMasterOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              className={cn(
+                "sidebar-item w-full justify-between",
+                isMasterActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Database className="w-5 h-5" />
+                <span className="font-medium">Master</span>
+              </div>
+              <ChevronDown 
+                className={cn(
+                  "w-4 h-4 transition-transform duration-200",
+                  isMasterOpen && "rotate-180"
+                )} 
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pl-4 mt-1 space-y-1">
+            {masterMenuItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    "sidebar-item text-sm py-2",
+                    isActive && "sidebar-item-active"
+                  )
+                }
+              >
+                {item.icon}
+                <span className="font-medium">{item.label}</span>
+              </NavLink>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
       </nav>
 
       {/* User Section */}
