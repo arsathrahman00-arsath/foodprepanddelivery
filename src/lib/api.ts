@@ -142,11 +142,13 @@ export const recipeTypeApi = {
 // Recipe endpoints
 export const recipeApi = {
   create: (data: {
+    recipe_type: string;
+    recipe_code: string;
+    item_name: string;
+    item_code: string;
+    cat_name: string;
     unit_short: string;
     req_qty: string;
-    recipe_type: string;
-    recipe_name: string;
-    item_name: string;
     created_by: string;
   }) => postFormData("/masterrecipe/", data),
   
