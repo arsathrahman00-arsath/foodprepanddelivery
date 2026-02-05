@@ -13,24 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-interface SupplierOption {
-  sup_name: string;
-  sup_code?: string;
+interface ItemOption {
+  item_name: string;
+  item_code?: number;
 }
 
 interface CategoryOption {
   cat_name: string;
-  cat_code?: string;
-}
-
-interface ItemOption {
-  item_name: string;
-  item_code?: string;
-}
-
-interface UnitOption {
-  unit_short: string;
-  unit_code?: string;
 }
 
 interface ReceiptEntry {
@@ -47,10 +36,10 @@ const MaterialReceiptPage: React.FC = () => {
   const { user } = useAuth();
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
+  const [suppliers, setSuppliers] = useState<string[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [items, setItems] = useState<ItemOption[]>([]);
-  const [units, setUnits] = useState<UnitOption[]>([]);
+  const [units, setUnits] = useState<string[]>([]);
   
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
@@ -66,7 +55,7 @@ const MaterialReceiptPage: React.FC = () => {
   // Fetch all dropdown data on mount
   useEffect(() => {
     const fetchDropdownData = async () => {
-      // Fetch suppliers
+      // Fetch suppliers (returns array of strings)
       setIsLoadingSuppliers(true);
       try {
         const response = await materialReceiptApi.getSuppliers();
@@ -79,12 +68,12 @@ const MaterialReceiptPage: React.FC = () => {
         setIsLoadingSuppliers(false);
       }
 
-      // Fetch categories
+      // Fetch categories (returns { categories: [...], units: [...] })
       setIsLoadingCategories(true);
       try {
         const response = await materialReceiptApi.getCategories();
-        if (response.status === "success" && response.data) {
-          setCategories(response.data);
+        if (response.status === "success" && response.data?.categories) {
+          setCategories(response.data.categories);
         }
       } catch (error) {
         console.error("Failed to fetch categories:", error);
@@ -105,7 +94,7 @@ const MaterialReceiptPage: React.FC = () => {
         setIsLoadingItems(false);
       }
 
-      // Fetch units
+      // Fetch units (returns array of strings)
       setIsLoadingUnits(true);
       try {
         const response = await materialReceiptApi.getUnits();
@@ -306,8 +295,8 @@ const MaterialReceiptPage: React.FC = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {suppliers.map((supplier) => (
-                          <SelectItem key={supplier.sup_name} value={supplier.sup_name}>
-                            {supplier.sup_name}
+                          <SelectItem key={supplier} value={supplier}>
+                            {supplier}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -366,8 +355,8 @@ const MaterialReceiptPage: React.FC = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {units.map((unit) => (
-                          <SelectItem key={unit.unit_short} value={unit.unit_short}>
-                            {unit.unit_short}
+                          <SelectItem key={unit} value={unit}>
+                            {unit}
                           </SelectItem>
                         ))}
                       </SelectContent>
