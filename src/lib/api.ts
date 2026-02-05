@@ -234,3 +234,29 @@ export const dayRequirementsApi = {
     created_by: string;
   }) => postFormData("/requirment_tr/", data),
 };
+
+// Material Receipt API endpoints
+export const materialReceiptApi = {
+  // Get supplier names for dropdown
+  getSuppliers: () => getData("/get_suppliername/"),
+  
+  // Get categories for dropdown
+  getCategories: () => getData("/get_master_item/"),
+  
+  // Get items for dropdown
+  getItems: () => getData("/get_master_itemsend/"),
+  
+  // Get units for dropdown
+  getUnits: () => getData("/get_unitname/"),
+  
+  // Create material receipt
+  create: (data: {
+    receipt_date: string;
+    sup_name: string;
+    cat_name: string;
+    item_name: string;
+    unit_short: string;
+    received_qty: string;
+    created_by: string;
+  }) => postFormData("/materialreceipt/", data),
+};

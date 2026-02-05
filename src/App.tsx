@@ -18,6 +18,7 @@ import RecipeForm from "@/pages/RecipeForm";
 import SchedulePage from "@/pages/SchedulePage";
 import RequirementPage from "@/pages/RequirementPage";
 import DayRequirementsPage from "@/pages/DayRequirementsPage";
+import MaterialReceiptPage from "@/pages/MaterialReceiptPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
                 <Route path="/dashboard/schedule" element={<SchedulePage />} />
                 <Route path="/dashboard/requirement" element={<RequirementPage />} />
                 <Route path="/dashboard/day-requirements" element={<DayRequirementsPage />} />
+                <Route path="/dashboard/material-receipt" element={<MaterialReceiptPage />} />
               </Route>
             </Route>
 
