@@ -139,6 +139,11 @@ export const recipeTypeApi = {
   getAll: () => getData("/get_masterrecipttype/"),
 };
 
+// Category and Unit combined endpoint
+export const categoryUnitApi = {
+  getAll: () => getData("/get_mastercatunit/"),
+};
+
 // Recipe endpoints
 export const recipeApi = {
   create: (data: {

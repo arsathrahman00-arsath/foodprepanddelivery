@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Plus, Minus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,14 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import { recipeApi, recipeTypeApi, itemApi } from "@/lib/api";
 
@@ -60,12 +52,9 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
   // Form state
   const [selectedRecipeType, setSelectedRecipeType] = useState<string>("");
   const [selectedRecipeCode, setSelectedRecipeCode] = useState<string>("");
-  const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
-  
-  // Current row being added
-  const [currentItem, setCurrentItem] = useState<string>("");
-  const [currentItemData, setCurrentItemData] = useState<ItemData | null>(null);
-  const [currentQty, setCurrentQty] = useState<string>("");
+  const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([
+    { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", unit_short: "", req_qty: "" }
+  ]);
 
   // Load dropdown data on mount
   useEffect(() => {
@@ -100,45 +89,44 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
     setSelectedRecipeCode(selected?.recipe_code || "");
   };
 
-  // Handle item selection - auto-populate category and unit
-  const handleItemChange = (value: string) => {
-    const selected = items.find((item) => item.item_name === value);
-    setCurrentItem(value);
-    setCurrentItemData(selected || null);
+  // Handle item selection for a specific row
+  const handleItemChange = useCallback((rowId: string, value: string) => {
+    const selectedItem = items.find((item) => item.item_name === value);
+    setRecipeItems((prev) =>
+      prev.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              item_name: value,
+              item_code: selectedItem?.item_code || "",
+              cat_name: selectedItem?.cat_name || "",
+              unit_short: selectedItem?.unit_short || "",
+            }
+          : row
+      )
+    );
+  }, [items]);
+
+  // Handle quantity change for a specific row
+  const handleQtyChange = useCallback((rowId: string, value: string) => {
+    setRecipeItems((prev) =>
+      prev.map((row) => (row.id === rowId ? { ...row, req_qty: value } : row))
+    );
+  }, []);
+
+  // Add new row
+  const handleAddRow = () => {
+    setRecipeItems((prev) => [
+      ...prev,
+      { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", unit_short: "", req_qty: "" },
+    ]);
   };
 
-  // Add item to recipe
-  const handleAddItem = () => {
-    if (!currentItem || !currentItemData || !currentQty) {
-      setError("Please select an item and enter quantity");
-      return;
+  // Remove row
+  const handleRemoveRow = (id: string) => {
+    if (recipeItems.length > 1) {
+      setRecipeItems((prev) => prev.filter((row) => row.id !== id));
     }
-    
-    // Check for duplicate item
-    if (recipeItems.some((ri) => ri.item_name === currentItem)) {
-      setError("This item is already added to the recipe");
-      return;
-    }
-    
-    const newItem: RecipeItem = {
-      id: Date.now().toString(),
-      item_name: currentItem,
-      item_code: currentItemData.item_code,
-      cat_name: currentItemData.cat_name,
-      unit_short: currentItemData.unit_short,
-      req_qty: currentQty,
-    };
-    
-    setRecipeItems([...recipeItems, newItem]);
-    setCurrentItem("");
-    setCurrentItemData(null);
-    setCurrentQty("");
-    setError(null);
-  };
-
-  // Remove item from recipe
-  const handleRemoveItem = (id: string) => {
-    setRecipeItems(recipeItems.filter((item) => item.id !== id));
   };
 
   // Submit all recipe items
@@ -147,9 +135,12 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
       setError("Please select a recipe type");
       return;
     }
-    
-    if (recipeItems.length === 0) {
-      setError("Please add at least one item to the recipe");
+
+    // Filter valid items (those with item_name and qty)
+    const validItems = recipeItems.filter((item) => item.item_name && item.req_qty);
+
+    if (validItems.length === 0) {
+      setError("Please add at least one item with quantity");
       return;
     }
     
@@ -158,7 +149,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
     
     try {
       // Submit each item as a separate record
-      for (const item of recipeItems) {
+      for (const item of validItems) {
         const response = await recipeApi.create({
           recipe_type: selectedRecipeType,
           recipe_code: selectedRecipeCode,
@@ -178,7 +169,9 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
       // Reset form on success
       setSelectedRecipeType("");
       setSelectedRecipeCode("");
-      setRecipeItems([]);
+      setRecipeItems([
+        { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", unit_short: "", req_qty: "" },
+      ]);
       onSuccess?.();
     } catch (err: any) {
       setError(err.message || "Unable to connect to server");
@@ -195,6 +188,8 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
       </div>
     );
   }
+
+  const validItemCount = recipeItems.filter((item) => item.item_name && item.req_qty).length;
 
   return (
     <div className="space-y-6">
@@ -221,116 +216,110 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
         </Select>
       </div>
 
-      {/* Add Item Section */}
+      {/* Add Items to Recipe Section */}
       <div className="border rounded-lg p-4 bg-muted/30">
         <h4 className="text-sm font-medium mb-4">Add Items to Recipe</h4>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Item Selection */}
-          <div className="space-y-2">
-            <Label>Item Name *</Label>
-            <Select value={currentItem} onValueChange={handleItemChange}>
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="Select item" />
-              </SelectTrigger>
-              <SelectContent className="bg-background border z-50 max-h-60">
-                {items.map((item) => (
-                  <SelectItem key={item.item_name} value={item.item_name}>
-                    {item.item_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
-          {/* Auto-populated Category */}
-          <div className="space-y-2">
-            <Label>Category Name</Label>
-            <Input
-              value={currentItemData?.cat_name || ""}
-              readOnly
-              disabled
-              placeholder="Auto-populated"
-              className="h-10 bg-muted"
-            />
-          </div>
-
-          {/* Auto-populated Unit */}
-          <div className="space-y-2">
-            <Label>Unit</Label>
-            <Input
-              value={currentItemData?.unit_short || ""}
-              readOnly
-              disabled
-              placeholder="Auto-populated"
-              className="h-10 bg-muted"
-            />
-          </div>
-
-          {/* Required Quantity */}
-          <div className="space-y-2">
-            <Label>Required Quantity *</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={currentQty}
-              onChange={(e) => setCurrentQty(e.target.value)}
-              placeholder="Enter quantity"
-              className="h-10"
-            />
-          </div>
+        {/* Header Row */}
+        <div className="hidden md:grid md:grid-cols-12 gap-2 mb-2 text-xs font-medium text-muted-foreground">
+          <div className="col-span-3">Item Name</div>
+          <div className="col-span-3">Category Name</div>
+          <div className="col-span-2">Unit</div>
+          <div className="col-span-3">Required Qty *</div>
+          <div className="col-span-1">Action</div>
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleAddItem}
-          className="mt-4 gap-2"
-          disabled={!currentItem || !currentQty}
-        >
-          <Plus className="w-4 h-4" />
-          Add Item
-        </Button>
+        {/* Item Rows */}
+        <div className="space-y-3">
+          {recipeItems.map((row, index) => (
+            <div key={row.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start">
+              {/* Item Name Dropdown */}
+              <div className="md:col-span-3">
+                <Label className="md:hidden text-xs mb-1 block">Item Name</Label>
+                <Select
+                  value={row.item_name}
+                  onValueChange={(value) => handleItemChange(row.id, value)}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select item" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border z-50 max-h-60">
+                    {items.map((item) => (
+                      <SelectItem key={item.item_name} value={item.item_name}>
+                        {item.item_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Category Name (Auto-filled) */}
+              <div className="md:col-span-3">
+                <Label className="md:hidden text-xs mb-1 block">Category Name</Label>
+                <Input
+                  value={row.cat_name}
+                  readOnly
+                  disabled
+                  placeholder="Auto-filled"
+                  className="h-9 bg-muted text-muted-foreground"
+                />
+              </div>
+
+              {/* Unit (Auto-filled) */}
+              <div className="md:col-span-2">
+                <Label className="md:hidden text-xs mb-1 block">Unit</Label>
+                <Input
+                  value={row.unit_short}
+                  readOnly
+                  disabled
+                  placeholder="Auto-filled"
+                  className="h-9 bg-muted text-muted-foreground"
+                />
+              </div>
+
+              {/* Required Quantity */}
+              <div className="md:col-span-3">
+                <Label className="md:hidden text-xs mb-1 block">Required Qty *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={row.req_qty}
+                  onChange={(e) => handleQtyChange(row.id, e.target.value)}
+                  placeholder="Enter qty"
+                  className="h-9"
+                />
+              </div>
+
+              {/* Add/Remove Buttons */}
+              <div className="md:col-span-1 flex gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleAddRow}
+                  className="h-9 w-9"
+                  title="Add row"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+                {recipeItems.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleRemoveRow(row.id)}
+                    className="h-9 w-9 text-destructive hover:text-destructive"
+                    title="Remove row"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-
-      {/* Items Table */}
-      {recipeItems.length > 0 && (
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead>Item Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead className="w-12">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recipeItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.item_name}</TableCell>
-                  <TableCell>{item.cat_name}</TableCell>
-                  <TableCell>{item.unit_short}</TableCell>
-                  <TableCell>{item.req_qty}</TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
 
       {/* Submit Button */}
       <div className="pt-2">
@@ -338,10 +327,10 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
           type="button"
           onClick={handleSubmit}
           className="bg-gradient-warm hover:opacity-90 gap-2 w-full"
-          disabled={isLoading || recipeItems.length === 0 || !selectedRecipeType}
+          disabled={isLoading || validItemCount === 0 || !selectedRecipeType}
         >
           <Plus className="w-4 h-4" />
-          {isLoading ? "Saving..." : `Save Recipe (${recipeItems.length} items)`}
+          {isLoading ? "Saving..." : `Save Recipe (${validItemCount} items)`}
         </Button>
       </div>
     </div>
