@@ -111,10 +111,7 @@ const DayRequirementsPage: React.FC = () => {
     const fetchRecipeItems = async () => {
       setIsLoadingItems(true);
       try {
-        const selectedRecipe = recipeTypes.find(r => r.recipe_type === selectedRecipeType);
-        if (!selectedRecipe) return;
-
-        const response = await dayRequirementsApi.getRecipeItems(String(selectedRecipe.recipe_code));
+        const response = await dayRequirementsApi.getRecipeItems(selectedRecipeType);
         
         if (response.status === "success" && response.data) {
           setRecipeItems(response.data);

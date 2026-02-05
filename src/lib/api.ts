@@ -211,8 +211,8 @@ export const dayRequirementsApi = {
   // Get daily requirements by date
   getByDate: (date: string) => getData(`/get_Deliveryplanrequirement/?req_date=${date}`),
   
-  // Get recipe items for a recipe type
-  getRecipeItems: (recipeCode: string) => getData(`/get_masterrecipe/?recipe_code=${recipeCode}`),
+  // Get recipe items by recipe type (POST request)
+  getRecipeItems: (recipeType: string) => postFormData("/dayrequirment/", { recipe_type: recipeType }),
   
   // Submit header data
   createHeader: (data: {
