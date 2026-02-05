@@ -241,10 +241,10 @@ export const materialReceiptApi = {
   getSuppliers: () => getData("/get_suppliername/"),
   
   // Get categories for dropdown
-  getCategories: () => getData("/get_master_item/"),
+  getCategories: () => getData("/get_mastercatunit/"),
   
   // Get items for dropdown
-  getItems: () => getData("/get_master_itemsend/"),
+  getItems: () => getData("/get_master_item/"),
   
   // Get units for dropdown
   getUnits: () => getData("/get_unitname/"),
