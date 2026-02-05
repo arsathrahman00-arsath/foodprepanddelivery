@@ -205,3 +205,32 @@ export const masjidListApi = {
 export const recipeTypeListApi = {
   getAll: () => getData("/get_master_recipttype/"),
 };
+
+// Day Requirements API endpoints
+export const dayRequirementsApi = {
+  // Get daily requirements by date
+  getByDate: (date: string) => getData(`/get_Deliveryplanrequirement/?req_date=${date}`),
+  
+  // Get recipe items for a recipe type
+  getRecipeItems: (recipeCode: string) => getData(`/get_masterrecipe/?recipe_code=${recipeCode}`),
+  
+  // Submit header data
+  createHeader: (data: {
+    day_req_date: string;
+    recipe_type: string;
+    recipe_code: string;
+    day_tot_req: string;
+    created_by: string;
+  }) => postFormData("/requirment_hd/", data),
+  
+  // Submit transaction data
+  createTransaction: (data: {
+    day_req_date: string;
+    recipe_code: string;
+    item_name: string;
+    cat_name: string;
+    unit_short: string;
+    day_req_qty: string;
+    created_by: string;
+  }) => postFormData("/requirment_tr/", data),
+};
