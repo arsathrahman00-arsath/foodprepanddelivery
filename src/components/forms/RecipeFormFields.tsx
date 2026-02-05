@@ -24,7 +24,6 @@ interface RecipeItem {
 
 interface ItemData {
   item_name: string;
-  item_code: string;
   cat_name: string;
   unit_short: string;
 }
@@ -94,7 +93,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
           ? {
               ...row,
               item_name: value,
-              item_code: selectedItem?.item_code || "",
+              item_code: value, // Use item_name as item_code
               cat_name: selectedItem?.cat_name || "",
               unit_short: selectedItem?.unit_short || "",
             }
@@ -148,9 +147,9 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
       for (const item of validItems) {
         const response = await recipeApi.create({
           recipe_type: selectedRecipeType,
-          recipe_code: "",
+          recipe_code: selectedRecipeType, // Use recipe_type as recipe_code
           item_name: item.item_name,
-          item_code: "",
+          item_code: item.item_code, // Now populated from item selection
           cat_name: item.cat_name,
           unit_short: item.unit_short,
           req_qty: item.req_qty,
