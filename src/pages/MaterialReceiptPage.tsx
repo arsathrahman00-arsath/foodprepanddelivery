@@ -167,12 +167,12 @@ const MaterialReceiptPage: React.FC = () => {
       await Promise.all(
         validEntries.map(entry =>
           materialReceiptApi.create({
-            receipt_date: formattedDate,
+            mat_rec_date: formattedDate,
             sup_name: entry.supplierName,
             cat_name: entry.categoryName,
             item_name: entry.itemName,
             unit_short: entry.uom,
-            received_qty: entry.receivedQty,
+            mat_rec_qty: entry.receivedQty,
             created_by: createdBy,
           })
         )

@@ -251,12 +251,12 @@ export const materialReceiptApi = {
   
   // Create material receipt
   create: (data: {
-    receipt_date: string;
+    mat_rec_date: string;
     sup_name: string;
     cat_name: string;
     item_name: string;
     unit_short: string;
-    received_qty: string;
+    mat_rec_qty: string;
     created_by: string;
-  }) => postFormData("/materialreceipt/", data),
+  }) => postFormData("/save_materialreceipt/", data),
 };
