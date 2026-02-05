@@ -11,20 +11,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { recipeApi, recipeTypeApi, itemApi } from "@/lib/api";
+import { recipeApi, recipeTypeApi, itemSendApi, itemDetailsApi } from "@/lib/api";
 
 interface RecipeItem {
   id: string;
   item_name: string;
   item_code: string;
   cat_name: string;
+  cat_code: string;
   unit_short: string;
   req_qty: string;
 }
 
-interface ItemData {
+interface ItemSendData {
   item_name: string;
+  item_code: number;
+}
+
+interface ItemDetailData {
   cat_name: string;
+  cat_code: number;
   unit_short: string;
 }
 
@@ -44,13 +50,14 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
   
   // Dropdown data
   const [recipeTypes, setRecipeTypes] = useState<RecipeTypeData[]>([]);
-  const [items, setItems] = useState<ItemData[]>([]);
+  const [items, setItems] = useState<ItemSendData[]>([]);
+  const [itemDetails, setItemDetails] = useState<ItemDetailData[]>([]);
   const [loadingDropdowns, setLoadingDropdowns] = useState(true);
   
   // Form state
   const [selectedRecipeType, setSelectedRecipeType] = useState<string>("");
   const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([
-    { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", unit_short: "", req_qty: "" }
+    { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "" }
   ]);
 
   // Load dropdown data on mount
@@ -58,9 +65,10 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
     const loadDropdownData = async () => {
       setLoadingDropdowns(true);
       try {
-        const [recipeTypeRes, itemRes] = await Promise.all([
+        const [recipeTypeRes, itemRes, itemDetailRes] = await Promise.all([
           recipeTypeApi.getAll(),
-          itemApi.getAll(),
+          itemSendApi.getAll(),
+          itemDetailsApi.getAll(),
         ]);
         
         if (recipeTypeRes.status === "success" || recipeTypeRes.status === "ok") {
@@ -68,6 +76,9 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
         }
         if (itemRes.status === "success" || itemRes.status === "ok") {
           setItems(itemRes.data || []);
+        }
+        if (itemDetailRes.status === "success" || itemDetailRes.status === "ok") {
+          setItemDetails(itemDetailRes.data || []);
         }
       } catch (err) {
         console.error("Failed to load dropdown data:", err);
@@ -86,21 +97,24 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
 
   // Handle item selection for a specific row
   const handleItemChange = useCallback((rowId: string, value: string) => {
-    const selectedItem = items.find((item) => item.item_name === value);
+    const selectedItem = items.find((item: ItemSendData) => item.item_name === value);
+    // Find matching item detail for category and unit info
+    const detail = itemDetails.find((d: ItemDetailData) => d.cat_name);
     setRecipeItems((prev) =>
       prev.map((row) =>
         row.id === rowId
           ? {
               ...row,
               item_name: value,
-              item_code: value, // Use item_name as item_code
-              cat_name: selectedItem?.cat_name || "",
-              unit_short: selectedItem?.unit_short || "",
+              item_code: selectedItem?.item_code?.toString() || "",
+              cat_name: detail?.cat_name || "",
+              cat_code: detail?.cat_code?.toString() || "",
+              unit_short: detail?.unit_short || "",
             }
           : row
       )
     );
-  }, [items]);
+  }, [items, itemDetails]);
 
   // Handle quantity change for a specific row
   const handleQtyChange = useCallback((rowId: string, value: string) => {
@@ -113,7 +127,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
   const handleAddRow = () => {
     setRecipeItems((prev) => [
       ...prev,
-      { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", unit_short: "", req_qty: "" },
+      { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "" },
     ]);
   };
 
@@ -149,8 +163,9 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
           recipe_type: selectedRecipeType,
           recipe_code: selectedRecipeType, // Use recipe_type as recipe_code
           item_name: item.item_name,
-          item_code: item.item_code, // Now populated from item selection
+          item_code: item.item_code,
           cat_name: item.cat_name,
+          cat_code: item.cat_code,
           unit_short: item.unit_short,
           req_qty: item.req_qty,
           created_by: user?.user_name || "",
@@ -164,7 +179,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
       // Reset form on success
       setSelectedRecipeType("");
       setRecipeItems([
-        { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", unit_short: "", req_qty: "" },
+        { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "" },
       ]);
       onSuccess?.();
     } catch (err: any) {

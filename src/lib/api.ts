@@ -152,10 +152,21 @@ export const recipeApi = {
     item_name: string;
     item_code: string;
     cat_name: string;
+    cat_code: string;
     unit_short: string;
     req_qty: string;
     created_by: string;
   }) => postFormData("/masterrecipe/", data),
   
   getAll: () => getData("/get_masterrecipe/"),
+};
+
+// Item with codes endpoint (for Recipe form)
+export const itemSendApi = {
+  getAll: () => getData("/get_master_itemsend/"),
+};
+
+// Item details endpoint (for Recipe form - gets cat_code, unit_short)
+export const itemDetailsApi = {
+  getAll: () => getData("/get_master_item/"),
 };
