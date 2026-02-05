@@ -163,16 +163,10 @@ export const recipeApi = {
 
 // Item with codes endpoint (for Recipe form)
 export const itemSendApi = {
-  getAll: () => {
-    const formData = new FormData();
-    return fetch(`${API_BASE_URL}/get_master_itemsend/`, {
-      method: "POST",
-      body: formData,
-    }).then(res => res.json());
-  },
+  getAll: () => getData("/get_master_item/"),
 };
 
 // Item details endpoint (for Recipe form - gets cat_code, unit_short)
 export const itemDetailsApi = {
-  getAll: () => getData("/get_master_item/"),
+  getAll: () => getData("/get_masteritem/"),
 };
