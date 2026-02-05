@@ -17,6 +17,8 @@ import {
   Calendar,
   CalendarDays,
   ClipboardList,
+  ChefHat as PrepIcon,
+  ListChecks,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -63,6 +65,10 @@ const deliveryPlanMenuItems = [
   { to: "/dashboard/requirement", icon: <ClipboardList className="w-4 h-4" />, label: "Requirement" },
 ];
 
+const preparationMenuItems = [
+  { to: "/dashboard/day-requirements", icon: <ListChecks className="w-4 h-4" />, label: "Day Requirements" },
+];
+
 const DashboardSidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -75,6 +81,10 @@ const DashboardSidebar: React.FC = () => {
   // Check if any delivery plan submenu is active
   const isDeliveryPlanActive = deliveryPlanMenuItems.some(item => location.pathname === item.to);
   const [isDeliveryPlanOpen, setIsDeliveryPlanOpen] = useState(isDeliveryPlanActive);
+  
+  // Check if any preparation submenu is active
+  const isPreparationActive = preparationMenuItems.some(item => location.pathname === item.to);
+  const [isPreparationOpen, setIsPreparationOpen] = useState(isPreparationActive);
 
   const handleLogout = () => {
     logout();
@@ -168,6 +178,46 @@ const DashboardSidebar: React.FC = () => {
           </CollapsibleTrigger>
           <CollapsibleContent className="pl-4 mt-1 space-y-1">
             {deliveryPlanMenuItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    "sidebar-item text-sm py-2",
+                    isActive && "sidebar-item-active"
+                  )
+                }
+              >
+                {item.icon}
+                <span className="font-medium">{item.label}</span>
+              </NavLink>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
+        
+        {/* Preparation Menu with Submenu */}
+        <Collapsible open={isPreparationOpen} onOpenChange={setIsPreparationOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              className={cn(
+                "sidebar-item w-full justify-between",
+                isPreparationActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <PrepIcon className="w-5 h-5" />
+                <span className="font-medium">Preparation</span>
+              </div>
+              <ChevronDown 
+                className={cn(
+                  "w-4 h-4 transition-transform duration-200",
+                  isPreparationOpen && "rotate-180"
+                )} 
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pl-4 mt-1 space-y-1">
+            {preparationMenuItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
