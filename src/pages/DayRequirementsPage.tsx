@@ -146,9 +146,14 @@ const DayRequirementsPage: React.FC = () => {
     }
   };
 
+  // Calculate multiplied quantity for an item
+  const getMultipliedQty = (reqQty: number) => {
+    return (Number(reqQty) || 0) * totalDailyRequirement;
+  };
+
   const selectedItemsTotal = recipeItems
     .filter(item => selectedItems.has(item.item_name))
-    .reduce((sum, item) => sum + (Number(item.req_qty) || 0), 0);
+    .reduce((sum, item) => sum + getMultipliedQty(item.req_qty), 0);
 
   const handleSubmit = async () => {
     if (!selectedDate || !selectedRecipeType || selectedItems.size === 0) {
@@ -187,7 +192,7 @@ const DayRequirementsPage: React.FC = () => {
             item_name: item.item_name,
             cat_name: item.cat_name,
             unit_short: item.unit_short,
-            day_req_qty: String(item.req_qty),
+            day_req_qty: String(getMultipliedQty(item.req_qty)),
             created_by: createdBy,
           })
         )
@@ -305,13 +310,14 @@ const DayRequirementsPage: React.FC = () => {
                     <TableHead>Item Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Unit</TableHead>
-                    <TableHead className="text-right">Quantity</TableHead>
+                    <TableHead className="text-right">Req Qty</TableHead>
+                    <TableHead className="text-right">Total Qty</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoadingItems ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
+                      <TableCell colSpan={6} className="text-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
@@ -328,6 +334,7 @@ const DayRequirementsPage: React.FC = () => {
                         <TableCell>{item.cat_name}</TableCell>
                         <TableCell>{item.unit_short}</TableCell>
                         <TableCell className="text-right">{item.req_qty}</TableCell>
+                        <TableCell className="text-right font-semibold">{getMultipliedQty(item.req_qty)}</TableCell>
                       </TableRow>
                     ))
                   )}
