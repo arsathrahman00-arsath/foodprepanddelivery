@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { recipeApi, recipeTypeApi, itemSendApi, itemDetailsApi } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 interface RecipeItem {
   id: string;
@@ -29,6 +30,7 @@ interface ItemSendData {
 }
 
 interface ItemDetailData {
+  item_name: string;
   cat_name: string;
   cat_code: number;
   unit_short: string;
@@ -36,6 +38,7 @@ interface ItemDetailData {
 
 interface RecipeTypeData {
   recipe_type: string;
+  recipe_code?: number;
 }
 
 interface Props {
@@ -56,6 +59,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
   
   // Form state
   const [selectedRecipeType, setSelectedRecipeType] = useState<string>("");
+  const [selectedRecipeCode, setSelectedRecipeCode] = useState<string>("");
   const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([
     { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "" }
   ]);
@@ -71,6 +75,10 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
           itemDetailsApi.getAll(),
         ]);
         
+        console.log("Recipe Types:", recipeTypeRes);
+        console.log("Items:", itemRes);
+        console.log("Item Details:", itemDetailRes);
+        
         if (recipeTypeRes.status === "success" || recipeTypeRes.status === "ok") {
           setRecipeTypes(recipeTypeRes.data || []);
         }
@@ -82,6 +90,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
         }
       } catch (err) {
         console.error("Failed to load dropdown data:", err);
+        setError("Failed to load form data. Please refresh the page.");
       } finally {
         setLoadingDropdowns(false);
       }
@@ -93,13 +102,21 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
   // Handle recipe type selection
   const handleRecipeTypeChange = (value: string) => {
     setSelectedRecipeType(value);
+    const selectedType = recipeTypes.find(rt => rt.recipe_type === value);
+    setSelectedRecipeCode(selectedType?.recipe_code?.toString() || value);
   };
 
   // Handle item selection for a specific row
   const handleItemChange = useCallback((rowId: string, value: string) => {
+    // Find item to get item_code
     const selectedItem = items.find((item: ItemSendData) => item.item_name === value);
-    // Find matching item detail for category and unit info
-    const detail = itemDetails.find((d: ItemDetailData) => d.cat_name);
+    
+    // Find matching item detail by item_name for category and unit
+    const detail = itemDetails.find((d: ItemDetailData) => d.item_name === value);
+    
+    console.log("Selected item:", selectedItem);
+    console.log("Matched detail:", detail);
+    
     setRecipeItems((prev) =>
       prev.map((row) =>
         row.id === rowId
@@ -159,9 +176,9 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
     try {
       // Submit each item as a separate record
       for (const item of validItems) {
-        const response = await recipeApi.create({
+        const payload = {
           recipe_type: selectedRecipeType,
-          recipe_code: selectedRecipeType, // Use recipe_type as recipe_code
+          recipe_code: selectedRecipeCode || selectedRecipeType,
           item_name: item.item_name,
           item_code: item.item_code,
           cat_name: item.cat_name,
@@ -169,20 +186,33 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
           unit_short: item.unit_short,
           req_qty: item.req_qty,
           created_by: user?.user_name || "",
-        });
+        };
+        
+        console.log("Submitting recipe item:", payload);
+        
+        const response = await recipeApi.create(payload);
+        
+        console.log("Recipe API response:", response);
         
         if (response.status !== "success" && response.status !== "ok") {
           throw new Error(response.message || "Failed to create recipe");
         }
       }
       
+      toast({
+        title: "Recipe saved successfully",
+        description: `${validItems.length} item(s) added to the recipe.`,
+      });
+      
       // Reset form on success
       setSelectedRecipeType("");
+      setSelectedRecipeCode("");
       setRecipeItems([
         { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "" },
       ]);
       onSuccess?.();
     } catch (err: any) {
+      console.error("Recipe submission error:", err);
       setError(err.message || "Unable to connect to server");
     } finally {
       setIsLoading(false);
@@ -240,7 +270,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
 
         {/* Item Rows */}
         <div className="space-y-3">
-          {recipeItems.map((row, index) => (
+          {recipeItems.map((row) => (
             <div key={row.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start">
               {/* Item Name Dropdown */}
               <div className="md:col-span-3">
@@ -254,7 +284,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
                   </SelectTrigger>
                   <SelectContent className="bg-background border z-50 max-h-60">
                     {items.map((item) => (
-                      <SelectItem key={item.item_name} value={item.item_name}>
+                      <SelectItem key={`${item.item_name}-${item.item_code}`} value={item.item_name}>
                         {item.item_name}
                       </SelectItem>
                     ))}
@@ -269,7 +299,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
                   value={row.cat_name}
                   readOnly
                   disabled
-                  placeholder="Auto-filled"
+                  placeholder="Select item first"
                   className="h-9 bg-muted text-muted-foreground"
                 />
               </div>
@@ -281,7 +311,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
                   value={row.unit_short}
                   readOnly
                   disabled
-                  placeholder="Auto-filled"
+                  placeholder="Auto"
                   className="h-9 bg-muted text-muted-foreground"
                 />
               </div>
