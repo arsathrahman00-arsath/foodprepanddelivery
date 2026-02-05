@@ -15,6 +15,8 @@ import ItemForm from "@/pages/ItemForm";
 import SupplierForm from "@/pages/SupplierForm";
 import RecipeTypeForm from "@/pages/RecipeTypeForm";
 import RecipeForm from "@/pages/RecipeForm";
+import SchedulePage from "@/pages/SchedulePage";
+import RequirementPage from "@/pages/RequirementPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +43,8 @@ const App = () => (
                 <Route path="/dashboard/supplier" element={<SupplierForm />} />
                 <Route path="/dashboard/recipe-type" element={<RecipeTypeForm />} />
                 <Route path="/dashboard/recipe" element={<RecipeForm />} />
+                <Route path="/dashboard/schedule" element={<SchedulePage />} />
+                <Route path="/dashboard/requirement" element={<RequirementPage />} />
               </Route>
             </Route>
 

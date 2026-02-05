@@ -14,6 +14,9 @@ import {
   User,
   ChevronDown,
   Database,
+  Calendar,
+  CalendarDays,
+  ClipboardList,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -55,6 +58,11 @@ const masterMenuItems = [
   { to: "/dashboard/recipe", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Recipe" },
 ];
 
+const deliveryPlanMenuItems = [
+  { to: "/dashboard/schedule", icon: <CalendarDays className="w-4 h-4" />, label: "Schedule" },
+  { to: "/dashboard/requirement", icon: <ClipboardList className="w-4 h-4" />, label: "Requirement" },
+];
+
 const DashboardSidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -63,6 +71,10 @@ const DashboardSidebar: React.FC = () => {
   // Check if any master submenu is active
   const isMasterActive = masterMenuItems.some(item => location.pathname === item.to);
   const [isMasterOpen, setIsMasterOpen] = useState(isMasterActive);
+  
+  // Check if any delivery plan submenu is active
+  const isDeliveryPlanActive = deliveryPlanMenuItems.some(item => location.pathname === item.to);
+  const [isDeliveryPlanOpen, setIsDeliveryPlanOpen] = useState(isDeliveryPlanActive);
 
   const handleLogout = () => {
     logout();
@@ -116,6 +128,46 @@ const DashboardSidebar: React.FC = () => {
           </CollapsibleTrigger>
           <CollapsibleContent className="pl-4 mt-1 space-y-1">
             {masterMenuItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    "sidebar-item text-sm py-2",
+                    isActive && "sidebar-item-active"
+                  )
+                }
+              >
+                {item.icon}
+                <span className="font-medium">{item.label}</span>
+              </NavLink>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
+        
+        {/* Delivery Plan Menu with Submenu */}
+        <Collapsible open={isDeliveryPlanOpen} onOpenChange={setIsDeliveryPlanOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              className={cn(
+                "sidebar-item w-full justify-between",
+                isDeliveryPlanActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Calendar className="w-5 h-5" />
+                <span className="font-medium">Delivery Plan</span>
+              </div>
+              <ChevronDown 
+                className={cn(
+                  "w-4 h-4 transition-transform duration-200",
+                  isDeliveryPlanOpen && "rotate-180"
+                )} 
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pl-4 mt-1 space-y-1">
+            {deliveryPlanMenuItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}

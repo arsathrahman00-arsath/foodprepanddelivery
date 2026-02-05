@@ -170,3 +170,38 @@ export const itemSendApi = {
 export const itemDetailsApi = {
   getAll: () => getData("/get_masteritem/"),
 };
+
+// Delivery Plan Schedule endpoints
+export const deliveryScheduleApi = {
+  create: (data: {
+    schd_date: string;
+    recipe_type: string;
+    recipe_code: string;
+    created_by: string;
+  }) => postFormData("/Deliveryplanschedule/", data),
+  
+  getAll: () => getData("/get_Deliveryplanschedule/"),
+};
+
+// Delivery Plan Requirement endpoints
+export const deliveryRequirementApi = {
+  create: (data: {
+    req_date: string;
+    masjid_name: string;
+    masjid_code: string;
+    req_qty: string;
+    created_by: string;
+  }) => postFormData("/Deliveryplanrequirement/", data),
+  
+  getAll: () => getData("/get_Deliveryplanrequirement/"),
+};
+
+// Masjid list endpoint (for Requirement form)
+export const masjidListApi = {
+  getAll: () => getData("/get_masjid_list/"),
+};
+
+// Recipe type with codes endpoint (for Schedule form)
+export const recipeTypeListApi = {
+  getAll: () => getData("/get_master_recipttype/"),
+};
