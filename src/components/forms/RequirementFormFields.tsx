@@ -1,9 +1,9 @@
  import React, { useEffect, useState } from "react";
- import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
  import { zodResolver } from "@hookform/resolvers/zod";
  import { z } from "zod";
  import { format } from "date-fns";
- import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, Plus, Trash2 } from "lucide-react";
  import { Button } from "@/components/ui/button";
  import { Calendar } from "@/components/ui/calendar";
  import { Input } from "@/components/ui/input";
@@ -32,12 +32,16 @@
  import { deliveryRequirementApi, masjidListApi } from "@/lib/api";
  import { cn } from "@/lib/utils";
  
+const entrySchema = z.object({
+  masjid_name: z.string().min(1, "Please select a mosque"),
+  req_qty: z.string().min(1, "Required quantity is required"),
+});
+
  const formSchema = z.object({
    req_date: z.date({
      required_error: "Please select a date",
    }),
-   masjid_name: z.string().min(1, "Please select a mosque"),
-   req_qty: z.string().min(1, "Required quantity is required"),
+  entries: z.array(entrySchema).min(1, "At least one entry is required"),
  });
  
  type FormData = z.infer<typeof formSchema>;
@@ -65,20 +69,23 @@
    const form = useForm<FormData>({
      resolver: zodResolver(formSchema),
      defaultValues: {
-       masjid_name: "",
-       req_qty: "",
+      entries: [{ masjid_name: "", req_qty: "" }],
      },
    });
  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "entries",
+  });
+
    useEffect(() => {
      const fetchMasjidList = async () => {
        try {
          const response = await masjidListApi.getAll();
          if (response.status === "success" && response.data) {
-           // Map masjids with their codes (index + 1)
-           const masjidsWithCodes = response.data.map((item: any, index: number) => ({
+          const masjidsWithCodes = response.data.map((item: any) => ({
              masjid_name: item.masjid_name,
-             masjid_code: index + 1,
+            masjid_code: item.masjid_code,
            }));
            setMasjidList(masjidsWithCodes);
          }
@@ -109,34 +116,42 @@
  
      setIsSubmitting(true);
      try {
-       const selectedMasjid = masjidList.find(
-         (m) => m.masjid_name === data.masjid_name
-       );
- 
        const formattedDate = format(data.req_date, "yyyy-MM-dd'T'00:00:00");
+      
+      // Submit all entries
+      const promises = data.entries.map((entry) => {
+        const selectedMasjid = masjidList.find(
+          (m) => m.masjid_name === entry.masjid_name
+        );
  
-       const response = await deliveryRequirementApi.create({
-         req_date: formattedDate,
-         masjid_name: data.masjid_name,
-         masjid_code: String(selectedMasjid?.masjid_code || ""),
-         req_qty: data.req_qty,
-         created_by: user.user_name,
+        return deliveryRequirementApi.create({
+          req_date: formattedDate,
+          masjid_name: entry.masjid_name,
+          masjid_code: String(selectedMasjid?.masjid_code || ""),
+          req_qty: entry.req_qty,
+          created_by: user.user_name,
+        });
        });
  
-       if (response.status === "success" || response.status === "ok") {
+      const responses = await Promise.all(promises);
+      const allSuccess = responses.every(
+        (r) => r.status === "success" || r.status === "ok"
+      );
+
+      if (allSuccess) {
          toast({
            title: "Success",
-           description: "Requirement created successfully",
+          description: `${data.entries.length} requirement(s) created successfully`,
          });
-         form.reset();
+        form.reset({ entries: [{ masjid_name: "", req_qty: "" }] });
          onSuccess?.();
        } else {
-         throw new Error(response.message || "Failed to create requirement");
+        throw new Error("Some requirements failed to create");
        }
      } catch (error: any) {
        toast({
          title: "Error",
-         description: error.message || "Failed to create requirement",
+        description: error.message || "Failed to create requirements",
          variant: "destructive",
        });
      } finally {
@@ -196,48 +211,92 @@
            )}
          />
  
-         <FormField
-           control={form.control}
-           name="masjid_name"
-           render={({ field }) => (
-             <FormItem>
-               <FormLabel>Mosque Name</FormLabel>
-               <Select onValueChange={field.onChange} value={field.value}>
-                 <FormControl>
-                   <SelectTrigger>
-                     <SelectValue placeholder="Select mosque" />
-                   </SelectTrigger>
-                 </FormControl>
-                 <SelectContent className="z-50 bg-popover">
-                   {masjidList.map((masjid) => (
-                     <SelectItem key={masjid.masjid_name} value={masjid.masjid_name}>
-                       {masjid.masjid_name}
-                     </SelectItem>
-                   ))}
-                 </SelectContent>
-               </Select>
-               <FormMessage />
-             </FormItem>
-           )}
-         />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <FormLabel className="text-base">Mosque Entries</FormLabel>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => append({ masjid_name: "", req_qty: "" })}
+              className="gap-1"
+            >
+              <Plus className="w-4 h-4" />
+              Add Entry
+            </Button>
+          </div>
  
-         <FormField
-           control={form.control}
-           name="req_qty"
-           render={({ field }) => (
-             <FormItem>
-               <FormLabel>Required Quantity</FormLabel>
-               <FormControl>
-                 <Input
-                   type="number"
-                   placeholder="Enter required quantity"
-                   {...field}
-                 />
-               </FormControl>
-               <FormMessage />
-             </FormItem>
-           )}
-         />
+          {fields.map((field, index) => (
+            <div
+              key={field.id}
+              className="flex gap-3 items-start p-3 border rounded-lg bg-muted/30"
+            >
+              <div className="flex-1 grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name={`entries.${index}.masjid_name`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={index > 0 ? "sr-only" : ""}>
+                        Mosque Name
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select mosque" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="z-50 bg-popover">
+                          {masjidList.map((masjid) => (
+                            <SelectItem
+                              key={masjid.masjid_name}
+                              value={masjid.masjid_name}
+                            >
+                              {masjid.masjid_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name={`entries.${index}.req_qty`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={index > 0 ? "sr-only" : ""}>
+                        Required Qty
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="Qty"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {fields.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => remove(index)}
+                  className="mt-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
  
          <Button
            type="submit"
@@ -250,7 +309,7 @@
                Creating...
              </>
            ) : (
-             "Create Requirement"
+            `Create ${fields.length} Requirement${fields.length > 1 ? "s" : ""}`
            )}
          </Button>
        </form>

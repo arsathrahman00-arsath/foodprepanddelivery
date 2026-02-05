@@ -28,7 +28,7 @@
  } from "@/components/ui/popover";
  import { useToast } from "@/hooks/use-toast";
  import { useAuth } from "@/contexts/AuthContext";
- import { deliveryScheduleApi, recipeTypeListApi } from "@/lib/api";
+import { deliveryScheduleApi, recipeTypeListApi, ApiResponse } from "@/lib/api";
  import { cn } from "@/lib/utils";
  
  const formSchema = z.object({
@@ -45,6 +45,11 @@
    recipe_code?: number;
  }
  
+interface ExistingSchedule {
+  schd_date: string;
+  recipe_type: string;
+}
+
  interface ScheduleFormFieldsProps {
    onSuccess?: () => void;
    isModal?: boolean;
@@ -58,6 +63,7 @@
    const { user } = useAuth();
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [recipeTypes, setRecipeTypes] = useState<RecipeTypeOption[]>([]);
+  const [existingSchedules, setExistingSchedules] = useState<ExistingSchedule[]>([]);
    const [isLoadingData, setIsLoadingData] = useState(true);
  
    const form = useForm<FormData>({
@@ -68,22 +74,29 @@
    });
  
    useEffect(() => {
-     const fetchRecipeTypes = async () => {
+    const fetchData = async () => {
        try {
-         const response = await recipeTypeListApi.getAll();
-         if (response.status === "success" && response.data) {
-           // Map recipe types with their codes (index + 1)
-           const typesWithCodes = response.data.map((item: any, index: number) => ({
+        const [recipeResponse, scheduleResponse] = await Promise.all([
+          recipeTypeListApi.getAll(),
+          deliveryScheduleApi.getAll(),
+        ]);
+
+        if (recipeResponse.status === "success" && recipeResponse.data) {
+          const typesWithCodes = recipeResponse.data.map((item: any) => ({
              recipe_type: item.recipe_type,
-             recipe_code: index + 1,
+            recipe_code: item.recipe_code,
            }));
            setRecipeTypes(typesWithCodes);
          }
+
+        if (scheduleResponse.status === "success" && scheduleResponse.data) {
+          setExistingSchedules(scheduleResponse.data);
+        }
        } catch (error) {
-         console.error("Failed to fetch recipe types:", error);
+        console.error("Failed to fetch data:", error);
          toast({
            title: "Error",
-           description: "Failed to load recipe types",
+          description: "Failed to load form data",
            variant: "destructive",
          });
        } finally {
@@ -91,9 +104,18 @@
        }
      };
  
-     fetchRecipeTypes();
+    fetchData();
    }, [toast]);
  
+  const checkDuplicate = (date: Date, recipeType: string): boolean => {
+    const formattedDate = format(date, "yyyy-MM-dd");
+    return existingSchedules.some((schedule) => {
+      const existingDate = schedule.schd_date.split("T")[0];
+      return existingDate === formattedDate && 
+             schedule.recipe_type.trim().toLowerCase() === recipeType.trim().toLowerCase();
+    });
+  };
+
    const onSubmit = async (data: FormData) => {
      if (!user) {
        toast({
@@ -104,6 +126,16 @@
        return;
      }
  
+    // Check for duplicate
+    if (checkDuplicate(data.schd_date, data.recipe_type)) {
+      toast({
+        title: "Duplicate Entry",
+        description: `This recipe is already scheduled for ${format(data.schd_date, "PPP")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
      setIsSubmitting(true);
      try {
        const selectedRecipe = recipeTypes.find(
@@ -120,6 +152,11 @@
        });
  
        if (response.status === "success" || response.status === "ok") {
+        // Add to existing schedules to prevent duplicate in same session
+        setExistingSchedules((prev) => [
+          ...prev,
+          { schd_date: formattedDate, recipe_type: data.recipe_type },
+        ]);
          toast({
            title: "Success",
            description: "Schedule created successfully",
