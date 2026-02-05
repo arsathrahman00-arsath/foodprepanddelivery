@@ -248,7 +248,24 @@ const DayRequirementsPage: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Selection Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Recipe Type Dropdown - Primary selection */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Recipe Type</label>
+              <Select value={selectedRecipeType} onValueChange={setSelectedRecipeType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={isLoadingRecipeTypes ? "Loading..." : "Select recipe type"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {recipeTypes.map((recipe) => (
+                    <SelectItem key={recipe.recipe_code} value={recipe.recipe_type}>
+                      {recipe.recipe_type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Date Picker */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Date</label>
@@ -276,36 +293,23 @@ const DayRequirementsPage: React.FC = () => {
                 </PopoverContent>
               </Popover>
             </div>
+          </div>
 
-            {/* Recipe Type Dropdown */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Recipe Type</label>
-              <Select value={selectedRecipeType} onValueChange={setSelectedRecipeType}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={isLoadingRecipeTypes ? "Loading..." : "Select recipe type"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {recipeTypes.map((recipe) => (
-                    <SelectItem key={recipe.recipe_code} value={recipe.recipe_type}>
-                      {recipe.recipe_type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Total Daily Requirement Display */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Total Daily Requirement</label>
-              <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
-                {isLoadingRequirements ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <span className="font-semibold text-lg">{totalDailyRequirement}</span>
-                )}
+          {/* Total Daily Requirement Display - Only shown when date is selected */}
+          {selectedDate && (
+            <div className="p-4 rounded-lg bg-muted/50 border">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Total Daily Requirement for {format(selectedDate, "PPP")}</span>
+                <div className="flex items-center gap-2">
+                  {isLoadingRequirements ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <span className="font-bold text-xl text-primary">{totalDailyRequirement}</span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Items Table */}
           {recipeItems.length > 0 && (
