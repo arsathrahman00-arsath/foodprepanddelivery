@@ -5,7 +5,6 @@ import RecipeFormFields from "@/components/forms/RecipeFormFields";
 import { recipeApi } from "@/lib/api";
 
 const columns = [
-  { key: "recipe_name", label: "Recipe Name" },
   { key: "recipe_type", label: "Recipe Type" },
   { key: "item_name", label: "Item Name" },
   { key: "unit_short", label: "Unit" },
