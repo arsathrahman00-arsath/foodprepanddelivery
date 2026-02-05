@@ -31,7 +31,6 @@ interface ItemData {
 
 interface RecipeTypeData {
   recipe_type: string;
-  recipe_code: string;
 }
 
 interface Props {
@@ -51,7 +50,6 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
   
   // Form state
   const [selectedRecipeType, setSelectedRecipeType] = useState<string>("");
-  const [selectedRecipeCode, setSelectedRecipeCode] = useState<string>("");
   const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([
     { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", unit_short: "", req_qty: "" }
   ]);
@@ -84,9 +82,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
 
   // Handle recipe type selection
   const handleRecipeTypeChange = (value: string) => {
-    const selected = recipeTypes.find((rt) => rt.recipe_type === value);
     setSelectedRecipeType(value);
-    setSelectedRecipeCode(selected?.recipe_code || "");
   };
 
   // Handle item selection for a specific row
@@ -131,7 +127,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
 
   // Submit all recipe items
   const handleSubmit = async () => {
-    if (!selectedRecipeType || !selectedRecipeCode) {
+    if (!selectedRecipeType) {
       setError("Please select a recipe type");
       return;
     }
@@ -152,9 +148,9 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
       for (const item of validItems) {
         const response = await recipeApi.create({
           recipe_type: selectedRecipeType,
-          recipe_code: selectedRecipeCode,
+          recipe_code: "",
           item_name: item.item_name,
-          item_code: item.item_code,
+          item_code: "",
           cat_name: item.cat_name,
           unit_short: item.unit_short,
           req_qty: item.req_qty,
@@ -168,7 +164,6 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
       
       // Reset form on success
       setSelectedRecipeType("");
-      setSelectedRecipeCode("");
       setRecipeItems([
         { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", unit_short: "", req_qty: "" },
       ]);
