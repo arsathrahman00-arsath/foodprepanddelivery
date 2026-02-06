@@ -213,8 +213,8 @@ export const dayRequirementsApi = {
   // Get daily requirements by date - new endpoint
   getByDate: (date: string) => postFormData("/get_recipe_and_qty_by_date/", { date }),
   
-  // Get recipe items by recipe type (POST request)
-  getRecipeItems: (recipeType: string) => postFormData("/dayrequirment/", { recipe_type: recipeType }),
+  // Get recipe items by recipe type (GET request)
+  getRecipeItems: (recipeType: string) => getData(`/dayrequirment/?recipe_type=${encodeURIComponent(recipeType)}`),
   
   // Submit header data
   createHeader: (data: {
