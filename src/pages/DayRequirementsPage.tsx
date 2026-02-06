@@ -47,11 +47,14 @@ const DayRequirementsPage: React.FC = () => {
   const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [totalDailyRequirement, setTotalDailyRequirement] = useState<number>(0);
+  const [recipeTotpkt, setRecipeTotpkt] = useState<number>(0);
   const [totalDailyRequirementKg, setTotalDailyRequirementKg] = useState<number>(0);
+  const [totalDailyRequirementRound, setTotalDailyRequirementRound] = useState<number>(0);
   
   // Loading states
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [isLoadingTotpkt, setIsLoadingTotpkt] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch recipe types and quantities when date changes
@@ -59,7 +62,9 @@ const DayRequirementsPage: React.FC = () => {
     if (!selectedDate) {
       setRecipeTypesData([]);
       setTotalDailyRequirement(0);
+      setRecipeTotpkt(0);
       setTotalDailyRequirementKg(0);
+      setTotalDailyRequirementRound(0);
       setSelectedRecipeCode("");
       return;
     }
@@ -93,19 +98,14 @@ const DayRequirementsPage: React.FC = () => {
           // Calculate total daily requirement as sum of all req_qty
           const total = reqQtyArray.reduce((sum: number, qty: number) => sum + (Number(qty) || 0), 0);
           setTotalDailyRequirement(total);
-          
-          // Calculate kg value (sum / 6)
-          setTotalDailyRequirementKg(total > 0 ? total / 6 : 0);
         } else {
           setRecipeTypesData([]);
           setTotalDailyRequirement(0);
-          setTotalDailyRequirementKg(0);
         }
       } catch (error) {
         console.error("Failed to fetch data by date:", error);
         setRecipeTypesData([]);
         setTotalDailyRequirement(0);
-        setTotalDailyRequirementKg(0);
         toast({
           title: "Error",
           description: "Failed to load data for the selected date",
@@ -121,6 +121,44 @@ const DayRequirementsPage: React.FC = () => {
 
   // Get selected recipe based on recipe_code
   const selectedRecipe = recipeTypesData.find(r => r.recipe_code === selectedRecipeCode);
+
+  // Fetch recipe_totpkt when recipe type changes
+  useEffect(() => {
+    if (!selectedRecipeCode || !selectedRecipe) {
+      setRecipeTotpkt(0);
+      setTotalDailyRequirementKg(0);
+      setTotalDailyRequirementRound(0);
+      return;
+    }
+
+    const fetchRecipeTotpkt = async () => {
+      setIsLoadingTotpkt(true);
+      try {
+        const response = await dayRequirementsApi.getRecipeTotpkt(selectedRecipe.recipe_type);
+        
+        if (response.status === "success" && response.data) {
+          const totpkt = Number(response.data.recipe_totpkt) || 0;
+          setRecipeTotpkt(totpkt);
+          
+          // Calculate kg value: Total Daily Req / recipe_totpkt
+          const kgValue = totpkt > 0 ? totalDailyRequirement / totpkt : 0;
+          setTotalDailyRequirementKg(kgValue);
+          
+          // Calculate rounded value (round up)
+          setTotalDailyRequirementRound(Math.ceil(kgValue));
+        }
+      } catch (error) {
+        console.error("Failed to fetch recipe totpkt:", error);
+        setRecipeTotpkt(0);
+        setTotalDailyRequirementKg(0);
+        setTotalDailyRequirementRound(0);
+      } finally {
+        setIsLoadingTotpkt(false);
+      }
+    };
+
+    fetchRecipeTotpkt();
+  }, [selectedRecipeCode, selectedRecipe, totalDailyRequirement]);
 
   // Fetch recipe items when recipe code changes
   useEffect(() => {
@@ -169,9 +207,9 @@ const DayRequirementsPage: React.FC = () => {
     }
   };
 
-  // Calculate multiplied quantity for an item
+  // Calculate multiplied quantity for an item based on Total Daily Req (Round)
   const getMultipliedQty = (reqQty: number) => {
-    return (Number(reqQty) || 0) * totalDailyRequirement;
+    return (Number(reqQty) || 0) * totalDailyRequirementRound;
   };
 
   const selectedItemsTotal = recipeItems
@@ -229,7 +267,9 @@ const DayRequirementsPage: React.FC = () => {
       setRecipeItems([]);
       setSelectedItems(new Set());
       setTotalDailyRequirement(0);
+      setRecipeTotpkt(0);
       setTotalDailyRequirementKg(0);
+      setTotalDailyRequirementRound(0);
       setRecipeTypesData([]);
     } catch (error) {
       console.error("Failed to save day requirements:", error);
@@ -259,7 +299,7 @@ const DayRequirementsPage: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Selection Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {/* Date Picker */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Date</label>
@@ -305,9 +345,9 @@ const DayRequirementsPage: React.FC = () => {
               </Select>
             </div>
 
-            {/* Total Daily Req Display */}
+            {/* Total Daily Req (pck) Display */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Total Daily Req</label>
+              <label className="text-sm font-medium">Total Daily Req (pck)</label>
               <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
                 {isLoadingData ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -317,16 +357,30 @@ const DayRequirementsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Total Daily Requirement (kg) Display */}
+            {/* Total Daily Req (kg) Display */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Total Daily Req (kg)</label>
+              <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
+                {isLoadingData || isLoadingTotpkt ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <span className="font-semibold text-lg text-primary">
+                    {totalDailyRequirementKg.toFixed(2)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Total Daily Req (Round) Display */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Total Daily Req (Round)</label>
               <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center justify-between">
-                {isLoadingData ? (
+                {isLoadingData || isLoadingTotpkt ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    <span className="font-semibold text-lg text-primary">
-                      {totalDailyRequirementKg.toFixed(2)}
+                    <span className="font-semibold text-lg text-accent-foreground">
+                      {totalDailyRequirementRound}
                     </span>
                     {selectedDate && (
                       <span className="text-xs text-muted-foreground">

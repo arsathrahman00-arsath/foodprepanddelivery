@@ -213,6 +213,9 @@ export const dayRequirementsApi = {
   // Get daily requirements by date - new endpoint
   getByDate: (date: string) => postFormData("/get_recipe_and_qty_by_date/", { date }),
   
+  // Get recipe totpkt by recipe type (POST request)
+  getRecipeTotpkt: (recipeType: string) => postFormData("/get_recipe_totpkt_by_type/", { recipe_type: recipeType }),
+  
   // Get recipe items by recipe type (POST request)
   getRecipeItems: (recipeType: string) => postFormData("/dayrequirment/", { recipe_type: recipeType }),
   
