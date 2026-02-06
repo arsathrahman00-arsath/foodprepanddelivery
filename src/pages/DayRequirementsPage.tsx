@@ -6,21 +6,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { dayRequirementsApi } from "@/lib/api";
 
+interface RecipeData {
+  recipe_code: string;
+  recipe_type: string;
+}
+
 interface DateResponseData {
-  recipe_types: string[];
+  recipes: RecipeData[];
   req_qty: number[];
 }
 
 interface RecipeTypeDisplay {
   recipe_type: string;
-  recipe_code?: number;
+  recipe_code: string;
   req_qty: number;
 }
 
@@ -37,7 +41,7 @@ const DayRequirementsPage: React.FC = () => {
   
   // State
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [selectedRecipeType, setSelectedRecipeType] = useState<string>("");
+  const [selectedRecipeCode, setSelectedRecipeCode] = useState<string>("");
   const [recipeTypesData, setRecipeTypesData] = useState<RecipeTypeDisplay[]>([]);
   const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -55,7 +59,7 @@ const DayRequirementsPage: React.FC = () => {
       setRecipeTypesData([]);
       setTotalDailyRequirement(0);
       setTotalDailyRequirementKg(0);
-      setSelectedRecipeType("");
+      setSelectedRecipeCode("");
       return;
     }
 
@@ -68,16 +72,22 @@ const DayRequirementsPage: React.FC = () => {
         if (response.status === "success" && response.data) {
           const data = response.data as DateResponseData;
           
-          // Transform arrays into display format
-          const recipeTypes = data.recipe_types || [];
+          // Transform arrays into display format - recipes array contains {recipe_code, recipe_type}
+          const recipes = data.recipes || [];
           const reqQtyArray = data.req_qty || [];
           
-          const transformedData: RecipeTypeDisplay[] = recipeTypes.map((type, index) => ({
-            recipe_type: type,
+          const transformedData: RecipeTypeDisplay[] = recipes.map((recipe, index) => ({
+            recipe_type: recipe.recipe_type.trim(),
+            recipe_code: recipe.recipe_code,
             req_qty: Number(reqQtyArray[index]) || 0,
           }));
           
           setRecipeTypesData(transformedData);
+          
+          // Auto-select first recipe type if available
+          if (transformedData.length > 0) {
+            setSelectedRecipeCode(transformedData[0].recipe_code);
+          }
           
           // Calculate total daily requirement as sum of all req_qty
           const total = reqQtyArray.reduce((sum: number, qty: number) => sum + (Number(qty) || 0), 0);
@@ -108,9 +118,12 @@ const DayRequirementsPage: React.FC = () => {
     fetchDataByDate();
   }, [selectedDate, toast]);
 
-  // Fetch recipe items when recipe type changes
+  // Get selected recipe based on recipe_code
+  const selectedRecipe = recipeTypesData.find(r => r.recipe_code === selectedRecipeCode);
+
+  // Fetch recipe items when recipe code changes
   useEffect(() => {
-    if (!selectedRecipeType) {
+    if (!selectedRecipeCode || !selectedRecipe) {
       setRecipeItems([]);
       setSelectedItems(new Set());
       return;
@@ -119,7 +132,8 @@ const DayRequirementsPage: React.FC = () => {
     const fetchRecipeItems = async () => {
       setIsLoadingItems(true);
       try {
-        const response = await dayRequirementsApi.getRecipeItems(selectedRecipeType);
+        // Send recipe_type to get items
+        const response = await dayRequirementsApi.getRecipeItems(selectedRecipe.recipe_type);
         
         if (response.status === "success" && response.data) {
           setRecipeItems(response.data);
@@ -134,7 +148,7 @@ const DayRequirementsPage: React.FC = () => {
     };
 
     fetchRecipeItems();
-  }, [selectedRecipeType]);
+  }, [selectedRecipeCode, selectedRecipe]);
 
   const toggleItemSelection = (itemName: string) => {
     const newSelection = new Set(selectedItems);
@@ -164,7 +178,7 @@ const DayRequirementsPage: React.FC = () => {
     .reduce((sum, item) => sum + getMultipliedQty(item.req_qty), 0);
 
   const handleSubmit = async () => {
-    if (!selectedDate || !selectedRecipeType || selectedItems.size === 0) {
+    if (!selectedDate || !selectedRecipeCode || !selectedRecipe || selectedItems.size === 0) {
       toast({
         title: "Validation Error",
         description: "Please select a date, recipe type, and at least one item",
@@ -173,18 +187,16 @@ const DayRequirementsPage: React.FC = () => {
       return;
     }
 
-    const selectedRecipe = recipeTypesData.find(r => r.recipe_type === selectedRecipeType);
-    if (!selectedRecipe) return;
-
     setIsSubmitting(true);
     try {
       const formattedDate = format(selectedDate, "yyyy-MM-dd'T'00:00:00");
-      const recipeCode = String(selectedRecipe.recipe_code || "");
+      const recipeCode = selectedRecipe.recipe_code;
+      const recipeType = selectedRecipe.recipe_type;
       const createdBy = user?.user_name || "";
 
       await dayRequirementsApi.createHeader({
         day_req_date: formattedDate,
-        recipe_type: selectedRecipeType,
+        recipe_type: recipeType,
         recipe_code: recipeCode,
         day_tot_req: String(totalDailyRequirement),
         created_by: createdBy,
@@ -212,7 +224,7 @@ const DayRequirementsPage: React.FC = () => {
       });
 
       setSelectedDate(undefined);
-      setSelectedRecipeType("");
+      setSelectedRecipeCode("");
       setRecipeItems([]);
       setSelectedItems(new Set());
       setTotalDailyRequirement(0);
@@ -275,21 +287,18 @@ const DayRequirementsPage: React.FC = () => {
               </Popover>
             </div>
 
-            {/* Recipe Type Dropdown */}
+            {/* Recipe Type Display (Read-only, auto-populated) */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Recipe Type</label>
-              <Select value={selectedRecipeType} onValueChange={setSelectedRecipeType} disabled={!selectedDate || isLoadingData}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={isLoadingData ? "Loading..." : "Select recipe type"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {recipeTypesData.map((recipe, index) => (
-                    <SelectItem key={`${recipe.recipe_type}-${index}`} value={recipe.recipe_type}>
-                      {recipe.recipe_type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
+                {isLoadingData ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : selectedRecipe ? (
+                  <span className="font-medium">{selectedRecipe.recipe_type}</span>
+                ) : (
+                  <span className="text-muted-foreground">Select date first</span>
+                )}
+              </div>
             </div>
 
             {/* Total Daily Requirement Display */}
@@ -342,12 +351,12 @@ const DayRequirementsPage: React.FC = () => {
                 <TableBody>
                   {recipeTypesData.map((recipe, index) => (
                     <TableRow 
-                      key={`${recipe.recipe_type}-${index}`}
+                      key={`${recipe.recipe_code}-${index}`}
                       className={cn(
                         "cursor-pointer hover:bg-muted/50",
-                        selectedRecipeType === recipe.recipe_type && "bg-primary/10"
+                        selectedRecipeCode === recipe.recipe_code && "bg-primary/10"
                       )}
-                      onClick={() => setSelectedRecipeType(recipe.recipe_type)}
+                      onClick={() => setSelectedRecipeCode(recipe.recipe_code)}
                     >
                       <TableCell className="font-medium">{recipe.recipe_type}</TableCell>
                       <TableCell className="text-right">{recipe.req_qty || 0}</TableCell>
@@ -421,7 +430,7 @@ const DayRequirementsPage: React.FC = () => {
               </div>
               <Button
                 onClick={handleSubmit}
-                disabled={isSubmitting || selectedItems.size === 0 || !selectedDate || !selectedRecipeType}
+                disabled={isSubmitting || selectedItems.size === 0 || !selectedDate || !selectedRecipeCode}
                 className="gap-2"
               >
                 {isSubmitting ? (
@@ -441,7 +450,7 @@ const DayRequirementsPage: React.FC = () => {
             </div>
           )}
 
-          {!isLoadingItems && recipeItems.length === 0 && selectedRecipeType && (
+          {!isLoadingItems && recipeItems.length === 0 && selectedRecipeCode && (
             <div className="text-center py-8 text-muted-foreground">
               No items found for the selected recipe type
             </div>
