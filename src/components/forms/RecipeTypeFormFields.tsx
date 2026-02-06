@@ -11,6 +11,8 @@ import { recipeTypeApi } from "@/lib/api";
 
 const schema = z.object({
   recipe_type: z.string().min(1, "Required").max(50),
+  recipe_perkg: z.string().min(1, "Required"),
+  recipe_totpkt: z.string().min(1, "Required"),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -27,7 +29,7 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { recipe_type: "" },
+    defaultValues: { recipe_type: "", recipe_perkg: "", recipe_totpkt: "" },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -36,6 +38,8 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
     try {
       const response = await recipeTypeApi.create({
         recipe_type: data.recipe_type,
+        recipe_perkg: data.recipe_perkg,
+        recipe_totpkt: data.recipe_totpkt,
         created_by: user?.user_name || "",
       });
 
@@ -70,6 +74,38 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
         {form.formState.errors.recipe_type && (
           <p className="text-xs text-destructive">{form.formState.errors.recipe_type.message}</p>
         )}
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="recipe_perkg">Recipe per kg *</Label>
+          <Input
+            id="recipe_perkg"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Enter per kg value"
+            {...form.register("recipe_perkg")}
+            className="h-10"
+          />
+          {form.formState.errors.recipe_perkg && (
+            <p className="text-xs text-destructive">{form.formState.errors.recipe_perkg.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="recipe_totpkt">Recipe tot pkt *</Label>
+          <Input
+            id="recipe_totpkt"
+            type="number"
+            step="1"
+            min="0"
+            placeholder="Enter total packets"
+            {...form.register("recipe_totpkt")}
+            className="h-10"
+          />
+          {form.formState.errors.recipe_totpkt && (
+            <p className="text-xs text-destructive">{form.formState.errors.recipe_totpkt.message}</p>
+          )}
+        </div>
       </div>
       <div className="pt-2">
         <Button type="submit" className="bg-gradient-warm hover:opacity-90 gap-2 w-full" disabled={isLoading}>

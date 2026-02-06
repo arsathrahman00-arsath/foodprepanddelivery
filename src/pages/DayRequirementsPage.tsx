@@ -11,11 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { recipeTypeListApi, dayRequirementsApi, deliveryRequirementApi } from "@/lib/api";
+import { dayRequirementsApi } from "@/lib/api";
 
-interface RecipeType {
+interface RecipeTypeData {
   recipe_type: string;
-  recipe_code: number;
+  recipe_code?: number;
+  req_qty?: number;
 }
 
 interface RecipeItem {
@@ -32,73 +33,67 @@ const DayRequirementsPage: React.FC = () => {
   // State
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedRecipeType, setSelectedRecipeType] = useState<string>("");
-  const [recipeTypes, setRecipeTypes] = useState<RecipeType[]>([]);
+  const [recipeTypesData, setRecipeTypesData] = useState<RecipeTypeData[]>([]);
   const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [totalDailyRequirement, setTotalDailyRequirement] = useState<number>(0);
+  const [totalDailyRequirementKg, setTotalDailyRequirementKg] = useState<number>(0);
   
   // Loading states
-  const [isLoadingRecipeTypes, setIsLoadingRecipeTypes] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [isLoadingRequirements, setIsLoadingRequirements] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch recipe types on mount
-  useEffect(() => {
-    const fetchRecipeTypes = async () => {
-      setIsLoadingRecipeTypes(true);
-      try {
-        const response = await recipeTypeListApi.getAll();
-        if (response.status === "success" && response.data) {
-          setRecipeTypes(response.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch recipe types:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load recipe types",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoadingRecipeTypes(false);
-      }
-    };
-    fetchRecipeTypes();
-  }, [toast]);
-
-  // Fetch daily requirements when date changes
+  // Fetch recipe types and quantities when date changes
   useEffect(() => {
     if (!selectedDate) {
+      setRecipeTypesData([]);
       setTotalDailyRequirement(0);
+      setTotalDailyRequirementKg(0);
+      setSelectedRecipeType("");
       return;
     }
 
-    const fetchDailyRequirements = async () => {
-      setIsLoadingRequirements(true);
+    const fetchDataByDate = async () => {
+      setIsLoadingData(true);
       try {
         const formattedDate = format(selectedDate, "yyyy-MM-dd");
-        const response = await deliveryRequirementApi.getAll();
+        const response = await dayRequirementsApi.getByDate(formattedDate);
         
         if (response.status === "success" && response.data) {
-          const filteredRequirements = response.data.filter(
-            (req: any) => req.req_date && req.req_date.startsWith(formattedDate)
-          );
-          const total = filteredRequirements.reduce(
-            (sum: number, req: any) => sum + (Number(req.req_qty) || 0),
+          setRecipeTypesData(response.data);
+          
+          // Calculate total daily requirement as sum of all req_qty
+          const total = response.data.reduce(
+            (sum: number, item: RecipeTypeData) => sum + (Number(item.req_qty) || 0),
             0
           );
           setTotalDailyRequirement(total);
+          
+          // Calculate kg value (sum / 6)
+          setTotalDailyRequirementKg(total > 0 ? total / 6 : 0);
+        } else {
+          setRecipeTypesData([]);
+          setTotalDailyRequirement(0);
+          setTotalDailyRequirementKg(0);
         }
       } catch (error) {
-        console.error("Failed to fetch daily requirements:", error);
+        console.error("Failed to fetch data by date:", error);
+        setRecipeTypesData([]);
         setTotalDailyRequirement(0);
+        setTotalDailyRequirementKg(0);
+        toast({
+          title: "Error",
+          description: "Failed to load data for the selected date",
+          variant: "destructive",
+        });
       } finally {
-        setIsLoadingRequirements(false);
+        setIsLoadingData(false);
       }
     };
 
-    fetchDailyRequirements();
-  }, [selectedDate]);
+    fetchDataByDate();
+  }, [selectedDate, toast]);
 
   // Fetch recipe items when recipe type changes
   useEffect(() => {
@@ -126,7 +121,7 @@ const DayRequirementsPage: React.FC = () => {
     };
 
     fetchRecipeItems();
-  }, [selectedRecipeType, recipeTypes]);
+  }, [selectedRecipeType]);
 
   const toggleItemSelection = (itemName: string) => {
     const newSelection = new Set(selectedItems);
@@ -165,13 +160,13 @@ const DayRequirementsPage: React.FC = () => {
       return;
     }
 
-    const selectedRecipe = recipeTypes.find(r => r.recipe_type === selectedRecipeType);
+    const selectedRecipe = recipeTypesData.find(r => r.recipe_type === selectedRecipeType);
     if (!selectedRecipe) return;
 
     setIsSubmitting(true);
     try {
       const formattedDate = format(selectedDate, "yyyy-MM-dd'T'00:00:00");
-      const recipeCode = String(selectedRecipe.recipe_code);
+      const recipeCode = String(selectedRecipe.recipe_code || "");
       const createdBy = user?.user_name || "";
 
       await dayRequirementsApi.createHeader({
@@ -208,6 +203,8 @@ const DayRequirementsPage: React.FC = () => {
       setRecipeItems([]);
       setSelectedItems(new Set());
       setTotalDailyRequirement(0);
+      setTotalDailyRequirementKg(0);
+      setRecipeTypesData([]);
     } catch (error) {
       console.error("Failed to save day requirements:", error);
       toast({
@@ -236,7 +233,7 @@ const DayRequirementsPage: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Selection Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Date Picker */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Date</label>
@@ -268,13 +265,13 @@ const DayRequirementsPage: React.FC = () => {
             {/* Recipe Type Dropdown */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Recipe Type</label>
-              <Select value={selectedRecipeType} onValueChange={setSelectedRecipeType}>
+              <Select value={selectedRecipeType} onValueChange={setSelectedRecipeType} disabled={!selectedDate || isLoadingData}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={isLoadingRecipeTypes ? "Loading..." : "Select recipe type"} />
+                  <SelectValue placeholder={isLoadingData ? "Loading..." : "Select recipe type"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {recipeTypes.map((recipe) => (
-                    <SelectItem key={recipe.recipe_code} value={recipe.recipe_type}>
+                  {recipeTypesData.map((recipe, index) => (
+                    <SelectItem key={`${recipe.recipe_type}-${index}`} value={recipe.recipe_type}>
                       {recipe.recipe_type}
                     </SelectItem>
                   ))}
@@ -286,14 +283,67 @@ const DayRequirementsPage: React.FC = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium">Total Daily Requirement</label>
               <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
-                {isLoadingRequirements ? (
+                {isLoadingData ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <span className="font-semibold text-lg">{totalDailyRequirement}</span>
                 )}
               </div>
             </div>
+
+            {/* Total Daily Requirement (kg) Display */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Total Daily Req (kg)</label>
+              <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center justify-between">
+                {isLoadingData ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <span className="font-semibold text-lg text-primary">
+                      {totalDailyRequirementKg.toFixed(2)}
+                    </span>
+                    {selectedDate && (
+                      <span className="text-xs text-muted-foreground">
+                        {format(selectedDate, "dd/MM/yyyy")}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
+
+          {/* Recipe Types Table when date is selected */}
+          {selectedDate && recipeTypesData.length > 0 && (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted/50 px-4 py-2">
+                <h4 className="text-sm font-medium">Recipe Types for {format(selectedDate, "PPP")}</h4>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead>Recipe Type</TableHead>
+                    <TableHead className="text-right">Req Qty</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recipeTypesData.map((recipe, index) => (
+                    <TableRow 
+                      key={`${recipe.recipe_type}-${index}`}
+                      className={cn(
+                        "cursor-pointer hover:bg-muted/50",
+                        selectedRecipeType === recipe.recipe_type && "bg-primary/10"
+                      )}
+                      onClick={() => setSelectedRecipeType(recipe.recipe_type)}
+                    >
+                      <TableCell className="font-medium">{recipe.recipe_type}</TableCell>
+                      <TableCell className="text-right">{recipe.req_qty || 0}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
           {/* Items Table */}
           {recipeItems.length > 0 && (
@@ -372,6 +422,12 @@ const DayRequirementsPage: React.FC = () => {
           )}
 
           {/* Empty State */}
+          {!isLoadingData && selectedDate && recipeTypesData.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              No recipe data found for the selected date
+            </div>
+          )}
+
           {!isLoadingItems && recipeItems.length === 0 && selectedRecipeType && (
             <div className="text-center py-8 text-muted-foreground">
               No items found for the selected recipe type

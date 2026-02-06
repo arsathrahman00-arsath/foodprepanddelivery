@@ -133,6 +133,8 @@ export const supplierApi = {
 export const recipeTypeApi = {
   create: (data: {
     recipe_type: string;
+    recipe_perkg: string;
+    recipe_totpkt: string;
     created_by: string;
   }) => postFormData("/masterrecipttype/", data),
   
@@ -208,8 +210,8 @@ export const recipeTypeListApi = {
 
 // Day Requirements API endpoints
 export const dayRequirementsApi = {
-  // Get daily requirements by date
-  getByDate: (date: string) => getData(`/get_Deliveryplanrequirement/?req_date=${date}`),
+  // Get daily requirements by date - new endpoint
+  getByDate: (date: string) => postFormData("/get_recipe_and_qty_by_date/", { date }),
   
   // Get recipe items by recipe type (POST request)
   getRecipeItems: (recipeType: string) => postFormData("/dayrequirment/", { recipe_type: recipeType }),
