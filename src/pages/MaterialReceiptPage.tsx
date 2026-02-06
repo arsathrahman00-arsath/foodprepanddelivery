@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, Package, Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { materialReceiptApi } from "@/lib/api";
+import { materialReceiptApi, itemDetailsApi } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -13,21 +13,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-interface ItemOption {
+interface ItemData {
   item_name: string;
-  item_code?: number;
-  cat_name?: string;
-  unit_short?: string;
-}
-
-interface CategoryOption {
   cat_name: string;
+  unit_short: string;
+  created_by?: string;
 }
 
 interface ReceiptRow {
   id: number;
-  itemName: string;
   categoryName: string;
+  itemName: string;
   uom: string;
   receivedQty: string;
 }
@@ -38,20 +34,22 @@ interface SupplierGroup {
   rows: ReceiptRow[];
 }
 
+// Standardize unit display (e.g., "kg" -> "Kg", "lt" -> "Lt")
+const standardizeUnit = (unit: string): string => {
+  if (!unit) return "";
+  return unit.charAt(0).toUpperCase() + unit.slice(1).toLowerCase();
+};
+
 const MaterialReceiptPage: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [suppliers, setSuppliers] = useState<string[]>([]);
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [items, setItems] = useState<ItemOption[]>([]);
-  const [units, setUnits] = useState<string[]>([]);
+  const [allItems, setAllItems] = useState<ItemData[]>([]);
   
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Grouped entries by supplier
@@ -59,14 +57,20 @@ const MaterialReceiptPage: React.FC = () => {
     { 
       id: 1, 
       supplierName: "", 
-      rows: [{ id: 1, itemName: "", categoryName: "", uom: "", receivedQty: "" }] 
+      rows: [{ id: 1, categoryName: "", itemName: "", uom: "", receivedQty: "" }] 
     }
   ]);
 
-  // Fetch all dropdown data on mount
+  // Extract unique categories from items
+  const categories = useMemo(() => {
+    const uniqueCategories = [...new Set(allItems.map(item => item.cat_name))];
+    return uniqueCategories.sort();
+  }, [allItems]);
+
+  // Fetch dropdown data on mount
   useEffect(() => {
     const fetchDropdownData = async () => {
-      // Fetch suppliers (returns array of strings)
+      // Fetch suppliers
       setIsLoadingSuppliers(true);
       try {
         const response = await materialReceiptApi.getSuppliers();
@@ -79,48 +83,27 @@ const MaterialReceiptPage: React.FC = () => {
         setIsLoadingSuppliers(false);
       }
 
-      // Fetch categories (returns { categories: [...], units: [...] })
-      setIsLoadingCategories(true);
-      try {
-        const response = await materialReceiptApi.getCategories();
-        if (response.status === "success" && response.data?.categories) {
-          setCategories(response.data.categories);
-        }
-      } catch (error) {
-        console.error("Failed to fetch categories:", error);
-      } finally {
-        setIsLoadingCategories(false);
-      }
-
-      // Fetch items
+      // Fetch items from /get_masteritem/ API
       setIsLoadingItems(true);
       try {
-        const response = await materialReceiptApi.getItems();
+        const response = await itemDetailsApi.getAll();
         if (response.status === "success" && response.data) {
-          setItems(response.data);
+          setAllItems(response.data);
         }
       } catch (error) {
         console.error("Failed to fetch items:", error);
       } finally {
         setIsLoadingItems(false);
       }
-
-      // Fetch units (returns array of strings)
-      setIsLoadingUnits(true);
-      try {
-        const response = await materialReceiptApi.getUnits();
-        if (response.status === "success" && response.data) {
-          setUnits(response.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch units:", error);
-      } finally {
-        setIsLoadingUnits(false);
-      }
     };
 
     fetchDropdownData();
   }, []);
+
+  // Get items filtered by category
+  const getItemsForCategory = (categoryName: string): ItemData[] => {
+    return allItems.filter(item => item.cat_name === categoryName);
+  };
 
   // Update supplier name for a group
   const updateSupplierName = (groupId: number, supplierName: string) => {
@@ -129,7 +112,7 @@ const MaterialReceiptPage: React.FC = () => {
     ));
   };
 
-  // Update a row within a supplier group (with auto-fill for item selection)
+  // Update a row within a supplier group
   const updateRow = (groupId: number, rowId: number, field: keyof ReceiptRow, value: string) => {
     setSupplierGroups(prev => prev.map(group => {
       if (group.id !== groupId) return group;
@@ -138,14 +121,23 @@ const MaterialReceiptPage: React.FC = () => {
         rows: group.rows.map(row => {
           if (row.id !== rowId) return row;
           
-          // If item is being selected, auto-fill category and uom
+          // If category is being changed, reset item and uom
+          if (field === 'categoryName') {
+            return {
+              ...row,
+              categoryName: value,
+              itemName: "",
+              uom: "",
+            };
+          }
+          
+          // If item is being selected, auto-fill uom
           if (field === 'itemName') {
-            const selectedItem = items.find(item => item.item_name === value);
+            const selectedItem = allItems.find(item => item.item_name === value);
             return {
               ...row,
               itemName: value,
-              categoryName: selectedItem?.cat_name || row.categoryName,
-              uom: selectedItem?.unit_short || row.uom,
+              uom: selectedItem ? standardizeUnit(selectedItem.unit_short) : "",
             };
           }
           
@@ -162,7 +154,7 @@ const MaterialReceiptPage: React.FC = () => {
       const newRowId = Math.max(...group.rows.map(r => r.id), 0) + 1;
       return {
         ...group,
-        rows: [...group.rows, { id: newRowId, itemName: "", categoryName: "", uom: "", receivedQty: "" }]
+        rows: [...group.rows, { id: newRowId, categoryName: "", itemName: "", uom: "", receivedQty: "" }]
       };
     }));
   };
@@ -171,7 +163,7 @@ const MaterialReceiptPage: React.FC = () => {
   const removeRow = (groupId: number, rowId: number) => {
     setSupplierGroups(prev => prev.map(group => {
       if (group.id !== groupId) return group;
-      if (group.rows.length <= 1) return group; // Keep at least one row
+      if (group.rows.length <= 1) return group;
       return {
         ...group,
         rows: group.rows.filter(row => row.id !== rowId)
@@ -187,7 +179,7 @@ const MaterialReceiptPage: React.FC = () => {
       { 
         id: newGroupId, 
         supplierName: "", 
-        rows: [{ id: 1, itemName: "", categoryName: "", uom: "", receivedQty: "" }] 
+        rows: [{ id: 1, categoryName: "", itemName: "", uom: "", receivedQty: "" }] 
       }
     ]);
   };
@@ -235,7 +227,6 @@ const MaterialReceiptPage: React.FC = () => {
     const formattedDate = format(selectedDate, "yyyy-MM-dd");
 
     try {
-      // Submit all valid entries
       await Promise.all(
         validEntries.map(entry =>
           materialReceiptApi.create({
@@ -261,7 +252,7 @@ const MaterialReceiptPage: React.FC = () => {
         { 
           id: 1, 
           supplierName: "", 
-          rows: [{ id: 1, itemName: "", categoryName: "", uom: "", receivedQty: "" }] 
+          rows: [{ id: 1, categoryName: "", itemName: "", uom: "", receivedQty: "" }] 
         }
       ]);
     } catch (error) {
@@ -310,7 +301,7 @@ const MaterialReceiptPage: React.FC = () => {
                   {selectedDate ? format(selectedDate, "PPP") : "Select date"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 z-50 bg-popover" align="start">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
@@ -338,7 +329,7 @@ const MaterialReceiptPage: React.FC = () => {
               </Button>
             </div>
 
-            {supplierGroups.map((group, groupIndex) => (
+            {supplierGroups.map((group) => (
               <div
                 key={group.id}
                 className="border rounded-lg overflow-hidden"
@@ -354,7 +345,7 @@ const MaterialReceiptPage: React.FC = () => {
                       <SelectTrigger className="bg-background">
                         <SelectValue placeholder={isLoadingSuppliers ? "Loading..." : "Select supplier"} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-50 bg-popover">
                         {suppliers.map((supplier) => (
                           <SelectItem key={supplier} value={supplier}>
                             {supplier}
@@ -380,8 +371,8 @@ const MaterialReceiptPage: React.FC = () => {
                 <div className="p-4 space-y-3">
                   {/* Header Row */}
                   <div className="hidden md:grid md:grid-cols-12 gap-2 text-xs font-medium text-muted-foreground px-1">
-                    <div className="col-span-3">Item Name</div>
                     <div className="col-span-3">Category Name</div>
+                    <div className="col-span-3">Item Name</div>
                     <div className="col-span-2">Unit of Measure</div>
                     <div className="col-span-3">Received Quantity</div>
                     <div className="col-span-1">Action</div>
@@ -389,36 +380,45 @@ const MaterialReceiptPage: React.FC = () => {
 
                   {group.rows.map((row) => (
                     <div key={row.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start">
-                      {/* Item Name - First */}
+                      {/* Category Name - First */}
                       <div className="md:col-span-3">
-                        <Label className="md:hidden text-xs mb-1 block">Item Name</Label>
+                        <Label className="md:hidden text-xs mb-1 block">Category Name</Label>
                         <Select
-                          value={row.itemName}
-                          onValueChange={(value) => updateRow(group.id, row.id, "itemName", value)}
+                          value={row.categoryName}
+                          onValueChange={(value) => updateRow(group.id, row.id, "categoryName", value)}
                         >
                           <SelectTrigger className="h-9">
-                            <SelectValue placeholder={isLoadingItems ? "Loading..." : "Item"} />
+                            <SelectValue placeholder={isLoadingItems ? "Loading..." : "Category"} />
                           </SelectTrigger>
-                          <SelectContent>
-                            {items.map((item) => (
-                              <SelectItem key={item.item_name} value={item.item_name}>
-                                {item.item_name}
+                          <SelectContent className="z-50 bg-popover max-h-60">
+                            {categories.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
 
-                      {/* Category Name - Auto-filled */}
+                      {/* Item Name - Filtered by Category */}
                       <div className="md:col-span-3">
-                        <Label className="md:hidden text-xs mb-1 block">Category Name</Label>
-                        <Input
-                          value={row.categoryName}
-                          readOnly
-                          disabled
-                          placeholder="Select item first"
-                          className="h-9 bg-muted text-muted-foreground"
-                        />
+                        <Label className="md:hidden text-xs mb-1 block">Item Name</Label>
+                        <Select
+                          value={row.itemName}
+                          onValueChange={(value) => updateRow(group.id, row.id, "itemName", value)}
+                          disabled={!row.categoryName}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder={!row.categoryName ? "Select category first" : "Select item"} />
+                          </SelectTrigger>
+                          <SelectContent className="z-50 bg-popover max-h-60">
+                            {getItemsForCategory(row.categoryName).map((item) => (
+                              <SelectItem key={item.item_name} value={item.item_name}>
+                                {item.item_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {/* UoM - Auto-filled */}
