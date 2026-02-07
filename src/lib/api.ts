@@ -254,6 +254,35 @@ export const packingApi = {
   }) => postFormData("/packing/", data),
 };
 
+// Food Allocation API endpoints
+export const allocationApi = {
+  getAll: () => getData("/allocation_get/"),
+  getScheduleRequirement: (date: string) => postFormData("/schedule_requirement_by_date/", { date }),
+  getAvailableQty: (date: string) => postFormData("/avilable_qty/", { date }),
+  create: (data: {
+    alloc_date: string;
+    masjid_name: string;
+    req_qty: string;
+    avbl_qty: string;
+    alloc_qty: string;
+    created_by: string;
+    recipe_type: string;
+    recipe_code: string;
+  }) => postFormData("/allocation_post/", data),
+};
+
+// Delivery API endpoints
+export const deliveryApi = {
+  getAll: () => getData("/delivery_get/"),
+  getScheduleRequirement: (date: string) => postFormData("/schedule_requirement_by_date/", { date }),
+  create: (data: {
+    location: string;
+    delivery_date: string;
+    delivery_qty: string;
+    delivery_by: string;
+  }) => postFormData("/delivery_post/", data),
+};
+
 // Material Receipt API endpoints
 export const materialReceiptApi = {
   // Get supplier names for dropdown
