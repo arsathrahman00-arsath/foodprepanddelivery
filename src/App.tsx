@@ -20,6 +20,8 @@ import RequirementPage from "@/pages/RequirementPage";
 import DayRequirementsPage from "@/pages/DayRequirementsPage";
 import MaterialReceiptPage from "@/pages/MaterialReceiptPage";
 import PackingPage from "@/pages/PackingPage";
+import FoodAllocationPage from "@/pages/FoodAllocationPage";
+import DeliveryPage from "@/pages/DeliveryPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +53,8 @@ const App = () => (
                 <Route path="/dashboard/day-requirements" element={<DayRequirementsPage />} />
                 <Route path="/dashboard/material-receipt" element={<MaterialReceiptPage />} />
                 <Route path="/dashboard/packing" element={<PackingPage />} />
+                <Route path="/dashboard/food-allocation" element={<FoodAllocationPage />} />
+                <Route path="/dashboard/delivery" element={<DeliveryPage />} />
               </Route>
             </Route>
 
