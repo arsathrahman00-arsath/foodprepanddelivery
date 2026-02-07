@@ -76,14 +76,12 @@ const DeliveryPage: React.FC = () => {
 
         if (response.status === "success" && response.data) {
           const data = response.data;
-          const masjids = data.masjid_names || data.masjid_name || [];
-          const reqQtys = data.req_qty || [];
-          const list: MasjidInfo[] = Array.isArray(masjids)
-            ? masjids.map((name: string, i: number) => ({
-                masjid_name: typeof name === "string" ? name.trim() : name,
-                req_qty: Number(reqQtys[i]) || 0,
-              }))
-            : [];
+          // requirements is an array of {masjid_name, req_qty}
+          const requirements = data.requirements || [];
+          const list: MasjidInfo[] = requirements.map((r: any) => ({
+            masjid_name: r.masjid_name,
+            req_qty: Number(r.req_qty) || 0,
+          }));
           setMasjidList(list);
         } else {
           setMasjidList([]);

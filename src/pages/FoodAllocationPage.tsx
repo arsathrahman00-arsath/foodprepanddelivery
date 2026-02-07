@@ -96,16 +96,17 @@ const FoodAllocationPage: React.FC = () => {
 
         if (scheduleRes.status === "success" && scheduleRes.data) {
           const data = scheduleRes.data;
-          setRecipes(data.recipes || []);
-          // Build masjid requirements from response
-          const masjids = data.masjid_names || data.masjid_name || [];
-          const reqQtys = data.req_qty || [];
-          const masjidList: MasjidRequirement[] = Array.isArray(masjids)
-            ? masjids.map((name: string, i: number) => ({
-                masjid_name: typeof name === "string" ? name.trim() : name,
-                req_qty: Number(reqQtys[i]) || 0,
-              }))
-            : [];
+          // recipes is an array of strings like ["Mutton Biriyani"]
+          const recipeList = (data.recipes || []).map((r: any) =>
+            typeof r === "string" ? { recipe_type: r, recipe_code: r } : r
+          );
+          setRecipes(recipeList);
+          // requirements is an array of {masjid_name, req_qty}
+          const requirements = data.requirements || [];
+          const masjidList: MasjidRequirement[] = requirements.map((r: any) => ({
+            masjid_name: r.masjid_name,
+            req_qty: Number(r.req_qty) || 0,
+          }));
           setMasjidRequirements(masjidList);
         }
 
