@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { allocationApi } from "@/lib/api";
@@ -40,20 +41,17 @@ const FoodAllocationPage: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Records table
   const [records, setRecords] = useState<AllocationRecord[]>([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Date & fetched data
+  // Dialog state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [isLoadingDateData, setIsLoadingDateData] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [recipes, setRecipes] = useState<string[]>([]);
   const [masjidRequirements, setMasjidRequirements] = useState<MasjidRequirement[]>([]);
   const [availableQty, setAvailableQty] = useState<number>(0);
-
-  // Multi-row allocation entries
   const [rows, setRows] = useState<AllocationRow[]>([]);
 
   const fetchRecords = async () => {
@@ -72,13 +70,21 @@ const FoodAllocationPage: React.FC = () => {
 
   useEffect(() => { fetchRecords(); }, []);
 
-  const createEmptyRow = useCallback((): AllocationRow => ({
+  const createEmptyRow = useCallback((recipeList?: string[]): AllocationRow => ({
     id: crypto.randomUUID(),
-    recipe_type: recipes.length === 1 ? recipes[0] : "",
+    recipe_type: (recipeList || recipes).length === 1 ? (recipeList || recipes)[0] : "",
     masjid_name: "",
     req_qty: 0,
     alloc_qty: "",
   }), [recipes]);
+
+  const resetDialog = () => {
+    setSelectedDate(undefined);
+    setRecipes([]);
+    setMasjidRequirements([]);
+    setAvailableQty(0);
+    setRows([]);
+  };
 
   // Fetch data when date changes
   useEffect(() => {
@@ -120,7 +126,6 @@ const FoodAllocationPage: React.FC = () => {
           setAvailableQty(qty);
         }
 
-        // Initialize with one empty row
         setRows([{
           id: crypto.randomUUID(),
           recipe_type: recipeList.length === 1 ? recipeList[0] : "",
@@ -139,7 +144,6 @@ const FoodAllocationPage: React.FC = () => {
     fetchDateData();
   }, [selectedDate, toast]);
 
-  // Calculate remaining available qty
   const totalAllocated = rows.reduce((sum, r) => sum + (Number(r.alloc_qty) || 0), 0);
   const remainingQty = availableQty - totalAllocated;
 
@@ -156,7 +160,6 @@ const FoodAllocationPage: React.FC = () => {
     setRows(prev => prev.map(row => {
       if (row.id !== id) return row;
       const updated = { ...row, [field]: value };
-      // Auto-populate req_qty when masjid changes
       if (field === "masjid_name") {
         const found = masjidRequirements.find(m => m.masjid_name === value);
         updated.req_qty = found ? found.req_qty : 0;
@@ -192,8 +195,8 @@ const FoodAllocationPage: React.FC = () => {
       }
 
       toast({ title: "Success", description: `${validRows.length} allocation(s) saved successfully` });
-      setAvailableQty(runningAvail);
-      setRows([createEmptyRow()]);
+      setDialogOpen(false);
+      resetDialog();
       fetchRecords();
     } catch (error) {
       console.error("Failed to save allocation:", error);
@@ -203,161 +206,157 @@ const FoodAllocationPage: React.FC = () => {
     }
   };
 
-  // Get already-used masjids in other rows (for filtering)
   const getUsedMasjids = (currentRowId: string) =>
     rows.filter(r => r.id !== currentRowId && r.masjid_name).map(r => r.masjid_name);
 
   return (
     <div className="space-y-6">
-      {/* Allocation Form */}
       <Card className="shadow-warm border-0">
         <CardHeader className="pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-warm flex items-center justify-center">
-              <Utensils className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <CardTitle className="text-xl">Food Allocation</CardTitle>
-              <CardDescription>Allocate food quantities to locations</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Date + Available Qty row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Allocation Date</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Available Qty</label>
-              <div className={cn(
-                "h-10 px-3 py-2 rounded-md border bg-muted flex items-center font-semibold text-lg",
-                remainingQty < 0 && "text-destructive"
-              )}>
-                {selectedDate ? remainingQty : "—"}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-warm flex items-center justify-center">
+                <Utensils className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Food Allocation</CardTitle>
+                <CardDescription>Allocate food quantities to locations</CardDescription>
               </div>
             </div>
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetDialog(); }}>
+              <DialogTrigger asChild>
+                <Button className="gap-2"><Plus className="w-4 h-4" /> Add Allocation</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Add Food Allocation</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {/* Date + Available Qty */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Allocation Date</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 z-[200]" align="start">
+                          <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className="p-3 pointer-events-auto" />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Available Qty</label>
+                      <div className={cn(
+                        "h-10 px-3 py-2 rounded-md border bg-muted flex items-center font-semibold text-lg",
+                        remainingQty < 0 && "text-destructive"
+                      )}>
+                        {selectedDate ? remainingQty : "—"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {isLoadingDateData && (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  )}
+
+                  {!isLoadingDateData && selectedDate && recipes.length > 0 && (
+                    <>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/50">
+                              <TableHead>Recipe Type</TableHead>
+                              <TableHead>Location</TableHead>
+                              <TableHead className="text-right">Req Qty</TableHead>
+                              <TableHead className="text-right">Allocate Qty</TableHead>
+                              <TableHead className="w-[80px] text-center">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {rows.map((row, index) => {
+                              const usedMasjids = getUsedMasjids(row.id);
+                              const availableMasjids = masjidRequirements.filter(
+                                m => !usedMasjids.includes(m.masjid_name) || m.masjid_name === row.masjid_name
+                              );
+                              return (
+                                <TableRow key={row.id}>
+                                  <TableCell>
+                                    {recipes.length === 1 ? (
+                                      <span className="text-sm font-medium">{recipes[0]}</span>
+                                    ) : (
+                                      <Select value={row.recipe_type} onValueChange={(v) => updateRow(row.id, "recipe_type", v)}>
+                                        <SelectTrigger className="h-9"><SelectValue placeholder="Select recipe" /></SelectTrigger>
+                                        <SelectContent className="z-[200] bg-popover">
+                                          {recipes.map((r, i) => (
+                                            <SelectItem key={i} value={r}>{r}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Select value={row.masjid_name} onValueChange={(v) => updateRow(row.id, "masjid_name", v)}>
+                                      <SelectTrigger className="h-9"><SelectValue placeholder="Select location" /></SelectTrigger>
+                                      <SelectContent className="z-[200] bg-popover">
+                                        {availableMasjids.map((m, i) => (
+                                          <SelectItem key={i} value={m.masjid_name}>{m.masjid_name}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <span className="text-sm font-medium">{row.req_qty}</span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      placeholder="Qty"
+                                      value={row.alloc_qty}
+                                      onChange={(e) => updateRow(row.id, "alloc_qty", e.target.value)}
+                                      className="h-9 text-right"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      {index === rows.length - 1 && (
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={addRow}>
+                                          <Plus className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                      {rows.length > 1 && (
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeRow(row.id)}>
+                                          <Minus className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full gap-2">
+                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Save Allocation{rows.filter(r => r.masjid_name && r.alloc_qty).length > 1 ? "s" : ""}
+                      </Button>
+                    </>
+                  )}
+
+                  {!isLoadingDateData && selectedDate && recipes.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No schedule data found for the selected date.</p>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
-
-          {isLoadingDateData && (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          )}
-
-          {!isLoadingDateData && selectedDate && recipes.length > 0 && (
-            <>
-              {/* Multi-row allocation table */}
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>Recipe Type</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead className="text-right">Req Qty</TableHead>
-                      <TableHead className="text-right">Allocate Qty</TableHead>
-                      <TableHead className="w-[80px] text-center">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((row, index) => {
-                      const usedMasjids = getUsedMasjids(row.id);
-                      const availableMasjids = masjidRequirements.filter(
-                        m => !usedMasjids.includes(m.masjid_name) || m.masjid_name === row.masjid_name
-                      );
-
-                      return (
-                        <TableRow key={row.id}>
-                          <TableCell>
-                            {recipes.length === 1 ? (
-                              <span className="text-sm font-medium">{recipes[0]}</span>
-                            ) : (
-                              <Select value={row.recipe_type} onValueChange={(v) => updateRow(row.id, "recipe_type", v)}>
-                                <SelectTrigger className="h-9">
-                                  <SelectValue placeholder="Select recipe" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {recipes.map((r, i) => (
-                                    <SelectItem key={i} value={r}>{r}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Select value={row.masjid_name} onValueChange={(v) => updateRow(row.id, "masjid_name", v)}>
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder="Select location" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableMasjids.map((m, i) => (
-                                  <SelectItem key={i} value={m.masjid_name}>{m.masjid_name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="text-sm font-medium">{row.req_qty}</span>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              placeholder="Qty"
-                              value={row.alloc_qty}
-                              onChange={(e) => updateRow(row.id, "alloc_qty", e.target.value)}
-                              className="h-9 text-right"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              {index === rows.length - 1 && (
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={addRow}>
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {rows.length > 1 && (
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeRow(row.id)}>
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full gap-2">
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save Allocation{rows.filter(r => r.masjid_name && r.alloc_qty).length > 1 ? "s" : ""}
-              </Button>
-            </>
-          )}
-
-          {!isLoadingDateData && selectedDate && recipes.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">No schedule data found for the selected date.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Records Table */}
-      <Card className="shadow-warm border-0">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg">Allocation Records</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="border rounded-lg overflow-hidden">
