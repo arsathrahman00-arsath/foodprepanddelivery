@@ -19,6 +19,7 @@ import {
   ClipboardList,
   ChefHat as PrepIcon,
   ListChecks,
+  PackageCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ const deliveryPlanMenuItems = [
 const preparationMenuItems = [
   { to: "/dashboard/day-requirements", icon: <ListChecks className="w-4 h-4" />, label: "Day Requirements" },
   { to: "/dashboard/material-receipt", icon: <Package className="w-4 h-4" />, label: "Material Receipt" },
+  { to: "/dashboard/packing", icon: <PackageCheck className="w-4 h-4" />, label: "Packing" },
 ];
 
 const DashboardSidebar: React.FC = () => {

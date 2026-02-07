@@ -240,6 +240,20 @@ export const dayRequirementsApi = {
   }) => postFormData("/requirment_tr/", data),
 };
 
+// Packing API endpoints
+export const packingApi = {
+  getAll: () => getData("/packin_get"),
+  getByDate: (date: string) => getData(`/get_recipe_and_qty_by_date?date=${date}`),
+  create: (data: {
+    pack_date: string;
+    recipe_type: string;
+    req_qty: string;
+    avbl_qty: string;
+    pack_qty: string;
+    created_by: string;
+  }) => postFormData("/packin", data),
+};
+
 // Material Receipt API endpoints
 export const materialReceiptApi = {
   // Get supplier names for dropdown
