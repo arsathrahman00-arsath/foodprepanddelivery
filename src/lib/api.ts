@@ -242,7 +242,7 @@ export const dayRequirementsApi = {
 
 // Packing API endpoints
 export const packingApi = {
-  getAll: () => getData("/packing_get"),
+  getAll: () => getData("/packing_get/"),
   getByDate: (date: string) => postFormData("/get_recipe_and_qty_by_date/", { date }),
   create: (data: {
     pack_date: string;
@@ -251,7 +251,7 @@ export const packingApi = {
     avbl_qty: string;
     pack_qty: string;
     created_by: string;
-  }) => postFormData("/packing", data),
+  }) => postFormData("/packing/", data),
 };
 
 // Material Receipt API endpoints
