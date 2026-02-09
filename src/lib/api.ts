@@ -316,6 +316,12 @@ export const cookingApi = {
   },
 };
 
+// Media viewing API endpoints
+export const mediaApi = {
+  getMedia: (date: string, type: string) =>
+    postFormData("/show_clean_media/", { clean_date: date, clean_type: type }),
+};
+
 // Material Receipt API endpoints
 export const materialReceiptApi = {
   // Get supplier names for dropdown
