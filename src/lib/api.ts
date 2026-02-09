@@ -287,10 +287,10 @@ export const deliveryApi = {
 export type CleaningType = "material" | "vessel" | "prep" | "pack";
 
 const cleaningEndpoints: Record<CleaningType, string> = {
-  material: "/material_clean",
-  vessel: "/vessel_clean",
-  prep: "/prep_clean",
-  pack: "/pack_clean",
+  material: "/material_clean/",
+  vessel: "/vessel_clean/",
+  prep: "/prep_clean/",
+  pack: "/pack_clean/",
 };
 
 export const cleaningApi = {
