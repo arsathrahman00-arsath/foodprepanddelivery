@@ -28,6 +28,7 @@ import {
   Container,
   Sandwich,
   Archive,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -188,6 +189,8 @@ const DashboardSidebar: React.FC = () => {
 
         <CollapsibleMenu label="Cleaning" icon={<SprayCan className="w-5 h-5" />} items={cleaningMenuItems} isActive={isCleaningActive} defaultOpen={isCleaningActive} />
         <CollapsibleMenu label="Distribution" icon={<Utensils className="w-5 h-5" />} items={distributionMenuItems} isActive={isDistributionActive} defaultOpen={isDistributionActive} />
+
+        <NavItem to="/dashboard/view-media" icon={<Eye className="w-5 h-5" />} label="View Media" />
       </nav>
 
       {/* User Section */}
