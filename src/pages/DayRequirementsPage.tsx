@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, ClipboardList, Loader2, Plus, Save } from "lucide-react";
+import { CalendarIcon, ClipboardList, Download, Loader2, Plus, Save } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { dayRequirementsApi } from "@/lib/api";
+import { generateDayReqPdf } from "@/lib/generateDayReqPdf";
 
 // Add the new API for fetching existing requirements
 const requirementListApi = {
@@ -77,6 +78,20 @@ const DayRequirementsPage: React.FC = () => {
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [isLoadingTotpkt, setIsLoadingTotpkt] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
+
+  const handleDownloadPdf = async (req: ExistingRequirement, index: number) => {
+    setDownloadingIndex(index);
+    try {
+      await generateDayReqPdf(req);
+      toast({ title: "Success", description: "PDF downloaded successfully" });
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+      toast({ title: "Error", description: "Failed to generate PDF", variant: "destructive" });
+    } finally {
+      setDownloadingIndex(null);
+    }
+  };
 
   // Fetch existing requirements for table
   const fetchExistingRequirements = async () => {
@@ -508,13 +523,14 @@ const DayRequirementsPage: React.FC = () => {
                   <TableHead>Recipe Type</TableHead>
                   <TableHead className="text-right">Total Daily Req</TableHead>
                   <TableHead>Created By</TableHead>
+                  <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoadingExisting ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                 ) : existingRequirements.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No day requirements found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No day requirements found</TableCell></TableRow>
                 ) : (
                   existingRequirements.map((req, index) => (
                     <TableRow key={index}>
@@ -522,6 +538,21 @@ const DayRequirementsPage: React.FC = () => {
                       <TableCell className="font-medium">{req.recipe_type}</TableCell>
                       <TableCell className="text-right">{req.day_tot_req}</TableCell>
                       <TableCell>{req.created_by}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDownloadPdf(req, index)}
+                          disabled={downloadingIndex === index}
+                        >
+                          {downloadingIndex === index ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
