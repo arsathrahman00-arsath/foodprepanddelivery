@@ -443,7 +443,7 @@ const DayRequirementsPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Items Table */}
+                  {/* Items Table - Grouped by Category */}
                   {recipeItems.length > 0 && (
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
@@ -463,18 +463,37 @@ const DayRequirementsPage: React.FC = () => {
                           {isLoadingItems ? (
                             <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                           ) : (
-                            recipeItems.map((item) => (
-                              <TableRow key={item.item_name}>
-                                <TableCell>
-                                  <Checkbox checked={selectedItems.has(item.item_name)} onCheckedChange={() => toggleItemSelection(item.item_name)} />
-                                </TableCell>
-                                <TableCell className="font-medium">{item.item_name}</TableCell>
-                                <TableCell>{item.cat_name}</TableCell>
-                                <TableCell>{item.unit_short}</TableCell>
-                                <TableCell className="text-right">{item.req_qty}</TableCell>
-                                <TableCell className="text-right font-semibold">{getMultipliedQty(item.req_qty)}</TableCell>
-                              </TableRow>
-                            ))
+                            (() => {
+                              const grouped: Record<string, RecipeItem[]> = {};
+                              recipeItems.forEach((item) => {
+                                const cat = item.cat_name || "Other";
+                                if (!grouped[cat]) grouped[cat] = [];
+                                grouped[cat].push(item);
+                              });
+                              const sortedCategories = Object.keys(grouped).sort();
+                              return sortedCategories.map((cat) => {
+                                const catItems = grouped[cat].sort((a, b) => a.item_name.localeCompare(b.item_name));
+                                return (
+                                  <React.Fragment key={cat}>
+                                    <TableRow className="bg-muted/30">
+                                      <TableCell colSpan={6} className="py-2 font-semibold text-sm text-primary">{cat}</TableCell>
+                                    </TableRow>
+                                    {catItems.map((item) => (
+                                      <TableRow key={item.item_name}>
+                                        <TableCell>
+                                          <Checkbox checked={selectedItems.has(item.item_name)} onCheckedChange={() => toggleItemSelection(item.item_name)} />
+                                        </TableCell>
+                                        <TableCell className="font-medium">{item.item_name}</TableCell>
+                                        <TableCell>{item.cat_name}</TableCell>
+                                        <TableCell>{item.unit_short}</TableCell>
+                                        <TableCell className="text-right">{item.req_qty}</TableCell>
+                                        <TableCell className="text-right font-semibold">{getMultipliedQty(item.req_qty)}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </React.Fragment>
+                                );
+                              });
+                            })()
                           )}
                         </TableBody>
                       </Table>
