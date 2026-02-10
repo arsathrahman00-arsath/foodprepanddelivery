@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,13 +25,30 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingNames, setExistingNames] = useState<Set<string>>(new Set());
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { unit_name: "", unit_short: "" },
   });
 
+  useEffect(() => {
+    const loadExisting = async () => {
+      try {
+        const res = await unitApi.getAll();
+        if (res.status === "success" || res.status === "ok") {
+          setExistingNames(new Set((res.data || []).map((r: any) => r.unit_name?.toLowerCase())));
+        }
+      } catch {}
+    };
+    loadExisting();
+  }, []);
+
   const onSubmit = async (data: FormData) => {
+    if (existingNames.has(data.unit_name.trim().toLowerCase())) {
+      setError(`Unit "${data.unit_name.trim()}" already exists`);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -42,6 +59,7 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
       });
 
       if (response.status === "success" || response.status === "ok") {
+        existingNames.add(data.unit_name.trim().toLowerCase());
         form.reset();
         onSuccess?.();
       } else {

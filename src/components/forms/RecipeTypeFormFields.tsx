@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,13 +26,30 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingNames, setExistingNames] = useState<Set<string>>(new Set());
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { recipe_type: "", recipe_perkg: "", recipe_totpkt: "" },
   });
 
+  useEffect(() => {
+    const loadExisting = async () => {
+      try {
+        const res = await recipeTypeApi.getAll();
+        if (res.status === "success" || res.status === "ok") {
+          setExistingNames(new Set((res.data || []).map((r: any) => r.recipe_type?.toLowerCase())));
+        }
+      } catch {}
+    };
+    loadExisting();
+  }, []);
+
   const onSubmit = async (data: FormData) => {
+    if (existingNames.has(data.recipe_type.trim().toLowerCase())) {
+      setError(`Recipe Type "${data.recipe_type.trim()}" already exists`);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -44,6 +61,7 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
       });
 
       if (response.status === "success" || response.status === "ok") {
+        existingNames.add(data.recipe_type.trim().toLowerCase());
         form.reset();
         onSuccess?.();
       } else {

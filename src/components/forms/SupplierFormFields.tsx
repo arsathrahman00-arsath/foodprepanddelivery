@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -27,13 +27,30 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingNames, setExistingNames] = useState<Set<string>>(new Set());
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { sup_name: "", sup_add: "", sup_city: "", sup_mobile: "" },
   });
 
+  useEffect(() => {
+    const loadExisting = async () => {
+      try {
+        const res = await supplierApi.getAll();
+        if (res.status === "success" || res.status === "ok") {
+          setExistingNames(new Set((res.data || []).map((r: any) => r.sup_name?.toLowerCase())));
+        }
+      } catch {}
+    };
+    loadExisting();
+  }, []);
+
   const onSubmit = async (data: FormData) => {
+    if (existingNames.has(data.sup_name.trim().toLowerCase())) {
+      setError(`Supplier "${data.sup_name.trim()}" already exists`);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -46,6 +63,7 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
       });
 
       if (response.status === "success" || response.status === "ok") {
+        existingNames.add(data.sup_name.trim().toLowerCase());
         form.reset();
         onSuccess?.();
       } else {

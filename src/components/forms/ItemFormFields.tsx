@@ -41,15 +41,22 @@ const ItemFormFields: React.FC<Props> = ({ onSuccess }) => {
   const [units, setUnits] = useState<{ unit_short: string }[]>([]);
   const [loadingDropdowns, setLoadingDropdowns] = useState(true);
   const [rows, setRows] = useState<ItemRow[]>([createEmptyRow(), createEmptyRow(), createEmptyRow()]);
+  const [existingNames, setExistingNames] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadDropdownData = async () => {
       setLoadingDropdowns(true);
       try {
-        const response = await categoryUnitApi.getAll();
-        if (response.status === "success" || response.status === "ok") {
-          setCategories(response.data?.categories || []);
-          setUnits(response.data?.units || []);
+        const [catUnitRes, itemsRes] = await Promise.all([
+          categoryUnitApi.getAll(),
+          itemApi.getAll(),
+        ]);
+        if (catUnitRes.status === "success" || catUnitRes.status === "ok") {
+          setCategories(catUnitRes.data?.categories || []);
+          setUnits(catUnitRes.data?.units || []);
+        }
+        if (itemsRes.status === "success" || itemsRes.status === "ok") {
+          setExistingNames(new Set((itemsRes.data || []).map((r: any) => r.item_name?.toLowerCase())));
         }
       } catch (err) {
         console.error("Failed to load dropdown data:", err);
@@ -79,6 +86,21 @@ const ItemFormFields: React.FC<Props> = ({ onSuccess }) => {
       return;
     }
 
+    // Check for duplicates against existing data
+    const duplicates = validRows.filter(r => existingNames.has(r.item_name.trim().toLowerCase()));
+    if (duplicates.length > 0) {
+      toast({ title: "Duplicate Found", description: `Item(s) already exist: ${duplicates.map(d => d.item_name.trim()).join(", ")}`, variant: "destructive" });
+      return;
+    }
+
+    // Check for duplicates within the current batch
+    const namesInBatch = validRows.map(r => r.item_name.trim().toLowerCase());
+    const batchDuplicates = namesInBatch.filter((name, i) => namesInBatch.indexOf(name) !== i);
+    if (batchDuplicates.length > 0) {
+      toast({ title: "Duplicate Found", description: `Duplicate item names in current entries`, variant: "destructive" });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const results = await Promise.all(
@@ -94,6 +116,7 @@ const ItemFormFields: React.FC<Props> = ({ onSuccess }) => {
 
       const allSuccess = results.every(r => r.status === "success" || r.status === "ok");
       if (allSuccess) {
+        validRows.forEach(r => existingNames.add(r.item_name.trim().toLowerCase()));
         toast({ title: "Success", description: `${validRows.length} item(s) created successfully` });
         setRows([createEmptyRow(), createEmptyRow(), createEmptyRow()]);
         onSuccess?.();

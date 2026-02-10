@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,13 +24,30 @@ const ItemCategoryFormFields: React.FC<Props> = ({ onSuccess }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingNames, setExistingNames] = useState<Set<string>>(new Set());
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { cat_name: "" },
   });
 
+  useEffect(() => {
+    const loadExisting = async () => {
+      try {
+        const res = await itemCategoryApi.getAll();
+        if (res.status === "success" || res.status === "ok") {
+          setExistingNames(new Set((res.data || []).map((r: any) => r.cat_name?.toLowerCase())));
+        }
+      } catch {}
+    };
+    loadExisting();
+  }, []);
+
   const onSubmit = async (data: FormData) => {
+    if (existingNames.has(data.cat_name.trim().toLowerCase())) {
+      setError(`Category "${data.cat_name.trim()}" already exists`);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -40,6 +57,7 @@ const ItemCategoryFormFields: React.FC<Props> = ({ onSuccess }) => {
       });
 
       if (response.status === "success" || response.status === "ok") {
+        existingNames.add(data.cat_name.trim().toLowerCase());
         form.reset();
         onSuccess?.();
       } else {

@@ -283,7 +283,12 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
                     <SelectValue placeholder="Select item" />
                   </SelectTrigger>
                   <SelectContent className="bg-background border z-50 max-h-60">
-                    {items.map((item) => (
+                    {items
+                      .filter((item) => {
+                        const usedNames = recipeItems.filter(r => r.id !== row.id).map(r => r.item_name);
+                        return !usedNames.includes(item.item_name);
+                      })
+                      .map((item) => (
                       <SelectItem key={`${item.item_name}-${item.item_code}`} value={item.item_name}>
                         {item.item_name}
                       </SelectItem>
