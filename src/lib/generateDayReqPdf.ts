@@ -70,7 +70,7 @@ export async function generateDayReqPdf(row: RequirementRow): Promise<void> {
   const categoryNames = Object.keys(grouped).sort();
 
   categoryNames.forEach((cat) => {
-    const catItems = grouped[cat];
+    const catItems = grouped[cat].sort((a, b) => a.item_name.localeCompare(b.item_name));
 
     // Category header
     doc.setFontSize(12);
