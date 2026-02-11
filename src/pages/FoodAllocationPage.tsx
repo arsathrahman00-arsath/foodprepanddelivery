@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, numericOnly, toProperCase } from "@/lib/utils";
 import { allocationApi } from "@/lib/api";
 
 interface AllocationRecord {
@@ -337,6 +337,7 @@ const FoodAllocationPage: React.FC = () => {
                                       placeholder="Qty"
                                       value={row.alloc_qty}
                                       onChange={(e) => updateRow(row.id, "alloc_qty", e.target.value)}
+                                      onKeyDown={numericOnly}
                                       className="h-9 text-right"
                                     />
                                   </TableCell>
@@ -399,8 +400,8 @@ const FoodAllocationPage: React.FC = () => {
                   records.map((record, index) => (
                     <TableRow key={index}>
                       <TableCell>{record.alloc_date}</TableCell>
-                      <TableCell className="font-medium">{record.masjid_name}</TableCell>
-                      <TableCell>{record.recipe_type}</TableCell>
+                      <TableCell className="font-medium">{toProperCase(record.masjid_name)}</TableCell>
+                      <TableCell>{toProperCase(record.recipe_type)}</TableCell>
                       <TableCell className="text-right">{record.req_qty}</TableCell>
                       <TableCell className="text-right">{record.avbl_qty}</TableCell>
                       <TableCell className="text-right">{record.alloc_qty}</TableCell>

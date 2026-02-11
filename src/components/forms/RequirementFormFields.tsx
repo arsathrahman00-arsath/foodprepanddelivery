@@ -30,7 +30,7 @@ import { CalendarIcon, Loader2, Plus, Trash2 } from "lucide-react";
  import { useToast } from "@/hooks/use-toast";
  import { useAuth } from "@/contexts/AuthContext";
  import { deliveryRequirementApi, masjidListApi } from "@/lib/api";
- import { cn } from "@/lib/utils";
+ import { cn, numericOnly } from "@/lib/utils";
  
 const entrySchema = z.object({
   masjid_name: z.string().min(1, "Please select a mosque"),
@@ -281,6 +281,7 @@ const entrySchema = z.object({
                         <Input
                           type="number"
                           placeholder="Qty"
+                          onKeyDown={numericOnly}
                           {...field}
                         />
                       </FormControl>

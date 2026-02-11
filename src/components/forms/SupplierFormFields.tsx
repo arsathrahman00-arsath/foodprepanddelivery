@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { supplierApi } from "@/lib/api";
+import { alphabetOnly } from "@/lib/utils";
 
 const schema = z.object({
   sup_name: z.string().min(1, "Required").max(100),
@@ -88,6 +89,7 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
         <Input
           id="sup_name"
           placeholder="Enter supplier name"
+          onKeyDown={alphabetOnly}
           {...form.register("sup_name")}
           className="h-10"
         />
@@ -113,6 +115,7 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
           <Input
             id="sup_city"
             placeholder="Enter city"
+            onKeyDown={alphabetOnly}
             {...form.register("sup_city")}
             className="h-10"
           />
