@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { itemCategoryApi } from "@/lib/api";
-import { alphabetOnly } from "@/lib/utils";
+import { alphabetOnly, toProperCase } from "@/lib/utils";
 
 const schema = z.object({
   cat_name: z.string().min(1, "Required").max(100),
@@ -53,7 +53,7 @@ const ItemCategoryFormFields: React.FC<Props> = ({ onSuccess }) => {
     setError(null);
     try {
       const response = await itemCategoryApi.create({
-        cat_name: data.cat_name,
+        cat_name: toProperCase(data.cat_name.trim()),
         created_by: user?.user_name || "",
       });
 

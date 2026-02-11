@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { itemApi, categoryUnitApi } from "@/lib/api";
-import { alphabetOnly } from "@/lib/utils";
+import { alphabetOnly, toProperCase } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 interface ItemRow {
@@ -107,7 +107,7 @@ const ItemFormFields: React.FC<Props> = ({ onSuccess }) => {
       const results = await Promise.all(
         validRows.map(row =>
           itemApi.create({
-            item_name: row.item_name.trim(),
+            item_name: toProperCase(row.item_name.trim()),
             cat_name: row.cat_name,
             unit_short: row.unit_short,
             created_by: user?.user_name || "",
