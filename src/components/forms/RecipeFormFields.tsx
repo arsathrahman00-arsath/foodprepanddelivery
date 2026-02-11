@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Plus, Minus, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Plus, Minus, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +11,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { recipeApi, recipeTypeApi, itemSendApi, itemDetailsApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { numericOnly } from "@/lib/utils";
 
 interface RecipeItem {
   id: string;
@@ -45,6 +47,66 @@ interface Props {
   onSuccess?: () => void;
   isModal?: boolean;
 }
+
+/** Searchable item select dropdown */
+const ItemSearchSelect: React.FC<{
+  value: string;
+  onValueChange: (value: string) => void;
+  items: ItemSendData[];
+}> = ({ value, onValueChange, items }) => {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const filtered = useMemo(() => {
+    if (!search) return items;
+    return items.filter((item) =>
+      item.item_name.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [items, search]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" className="h-9 w-full justify-between text-sm font-normal">
+          {value || <span className="text-muted-foreground">Select item</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[220px] p-0 z-50" align="start">
+        <div className="flex items-center border-b px-3 py-2">
+          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+          <input
+            placeholder="Search items..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex h-7 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
+        </div>
+        <div className="max-h-48 overflow-y-auto p-1">
+          {filtered.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">No items found.</p>
+          ) : (
+            filtered.map((item) => (
+              <button
+                key={`${item.item_name}-${item.item_code}`}
+                type="button"
+                onClick={() => {
+                  onValueChange(item.item_name);
+                  setOpen(false);
+                  setSearch("");
+                }}
+                className={`w-full text-left text-sm px-2 py-1.5 rounded-sm hover:bg-accent hover:text-accent-foreground ${
+                  value === item.item_name ? "bg-accent" : ""
+                }`}
+              >
+                {item.item_name}
+              </button>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
   const { user } = useAuth();
@@ -272,29 +334,17 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
         <div className="space-y-3">
           {recipeItems.map((row) => (
             <div key={row.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start">
-              {/* Item Name Dropdown */}
+              {/* Item Name Dropdown with Search */}
               <div className="md:col-span-3">
                 <Label className="md:hidden text-xs mb-1 block">Item Name</Label>
-                <Select
+                <ItemSearchSelect
                   value={row.item_name}
                   onValueChange={(value) => handleItemChange(row.id, value)}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select item" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border z-50 max-h-60">
-                    {items
-                      .filter((item) => {
-                        const usedNames = recipeItems.filter(r => r.id !== row.id).map(r => r.item_name);
-                        return !usedNames.includes(item.item_name);
-                      })
-                      .map((item) => (
-                      <SelectItem key={`${item.item_name}-${item.item_code}`} value={item.item_name}>
-                        {item.item_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  items={items.filter((item) => {
+                    const usedNames = recipeItems.filter(r => r.id !== row.id).map(r => r.item_name);
+                    return !usedNames.includes(item.item_name);
+                  })}
+                />
               </div>
 
               {/* Category Name (Auto-filled) */}
@@ -330,6 +380,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
                   min="0"
                   value={row.req_qty}
                   onChange={(e) => handleQtyChange(row.id, e.target.value)}
+                  onKeyDown={numericOnly}
                   placeholder="Enter qty"
                   className="h-9"
                 />

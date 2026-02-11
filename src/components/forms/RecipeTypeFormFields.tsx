@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { recipeTypeApi } from "@/lib/api";
+import { alphabetOnly, numericOnly } from "@/lib/utils";
 
 const schema = z.object({
   recipe_type: z.string().min(1, "Required").max(50),
@@ -86,6 +87,7 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
         <Input
           id="recipe_type"
           placeholder="e.g., Breakfast, Lunch"
+          onKeyDown={alphabetOnly}
           {...form.register("recipe_type")}
           className="h-10"
         />
@@ -102,6 +104,7 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
             step="0.01"
             min="0"
             placeholder="Enter per kg value"
+            onKeyDown={numericOnly}
             {...form.register("recipe_perkg")}
             className="h-10"
           />
@@ -117,6 +120,7 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
             step="1"
             min="0"
             placeholder="Enter total packets"
+            onKeyDown={numericOnly}
             {...form.register("recipe_totpkt")}
             className="h-10"
           />

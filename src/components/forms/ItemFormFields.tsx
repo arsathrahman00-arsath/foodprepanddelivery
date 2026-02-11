@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { itemApi, categoryUnitApi } from "@/lib/api";
+import { alphabetOnly } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 interface ItemRow {
@@ -151,6 +152,7 @@ const ItemFormFields: React.FC<Props> = ({ onSuccess }) => {
                   placeholder="Item name"
                   value={row.item_name}
                   onChange={(e) => updateRow(row.id, "item_name", e.target.value)}
+                  onKeyDown={alphabetOnly}
                   className="h-9"
                 />
               </div>

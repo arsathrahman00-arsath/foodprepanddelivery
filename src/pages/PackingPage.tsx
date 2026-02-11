@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, numericOnly, toProperCase } from "@/lib/utils";
 import { packingApi } from "@/lib/api";
 
 interface PackingRecord {
@@ -227,7 +227,7 @@ const PackingPage: React.FC = () => {
                         <TableBody>
                           {formRows.map((row, index) => (
                             <TableRow key={index}>
-                              <TableCell className="font-medium">{row.recipe_type}</TableCell>
+                              <TableCell className="font-medium">{toProperCase(row.recipe_type)}</TableCell>
                               <TableCell className="text-right">{row.req_qty}</TableCell>
                               <TableCell className="text-right">
                                 <Input
@@ -235,6 +235,7 @@ const PackingPage: React.FC = () => {
                                   placeholder="0"
                                   value={row.avbl_qty}
                                   onChange={(e) => updateFormRow(index, "avbl_qty", e.target.value)}
+                                  onKeyDown={numericOnly}
                                   className="w-24 ml-auto text-right"
                                 />
                               </TableCell>
@@ -244,6 +245,7 @@ const PackingPage: React.FC = () => {
                                   placeholder="0"
                                   value={row.pack_qty}
                                   onChange={(e) => updateFormRow(index, "pack_qty", e.target.value)}
+                                  onKeyDown={numericOnly}
                                   className="w-24 ml-auto text-right"
                                 />
                               </TableCell>
@@ -299,11 +301,11 @@ const PackingPage: React.FC = () => {
                   records.map((record, index) => (
                     <TableRow key={index}>
                       <TableCell>{record.pack_date}</TableCell>
-                      <TableCell className="font-medium">{record.recipe_type}</TableCell>
+                      <TableCell className="font-medium">{toProperCase(record.recipe_type)}</TableCell>
                       <TableCell className="text-right">{record.req_qty}</TableCell>
                       <TableCell className="text-right">{record.avbl_qty}</TableCell>
                       <TableCell className="text-right">{record.pack_qty}</TableCell>
-                      <TableCell>{record.created_by}</TableCell>
+                      <TableCell>{toProperCase(record.created_by)}</TableCell>
                     </TableRow>
                   ))
                 )}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Plus, RefreshCw, AlertCircle } from "lucide-react";
+import { toProperCase } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -165,7 +166,7 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
                         {index + 1}
                       </TableCell>
                       {columns.map((col) => (
-                        <TableCell key={col.key}>{row[col.key] || "-"}</TableCell>
+                        <TableCell key={col.key}>{row[col.key] ? toProperCase(String(row[col.key])) : "-"}</TableCell>
                       ))}
                     </TableRow>
                   ))}
@@ -177,7 +178,7 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" forceMount={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {icon}

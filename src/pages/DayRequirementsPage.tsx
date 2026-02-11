@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, toProperCase } from "@/lib/utils";
 import { dayRequirementsApi } from "@/lib/api";
 import { generateDayReqPdf } from "@/lib/generateDayReqPdf";
 
@@ -337,7 +337,7 @@ const DayRequirementsPage: React.FC = () => {
                 <CardDescription>Plan daily ingredient requirements based on recipes</CardDescription>
               </div>
             </div>
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetDialog(); }}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); }}>
               <DialogTrigger asChild>
                 <Button className="gap-2"><Plus className="w-4 h-4" /> Add Day Requirement</Button>
               </DialogTrigger>
@@ -434,7 +434,7 @@ const DayRequirementsPage: React.FC = () => {
                               className={cn("cursor-pointer hover:bg-muted/50", selectedRecipeCode === recipe.recipe_code && "bg-primary/10")}
                               onClick={() => setSelectedRecipeCode(recipe.recipe_code)}
                             >
-                              <TableCell className="font-medium">{recipe.recipe_type}</TableCell>
+                              <TableCell className="font-medium">{toProperCase(recipe.recipe_type)}</TableCell>
                               <TableCell className="text-right">{recipe.req_qty || 0}</TableCell>
                             </TableRow>
                           ))}
@@ -476,16 +476,16 @@ const DayRequirementsPage: React.FC = () => {
                                 return (
                                   <React.Fragment key={cat}>
                                     <TableRow className="bg-muted/30">
-                                      <TableCell colSpan={6} className="py-2 font-semibold text-sm text-primary">{cat}</TableCell>
+                                      <TableCell colSpan={6} className="py-2 font-semibold text-sm text-primary">{toProperCase(cat)}</TableCell>
                                     </TableRow>
                                     {catItems.map((item) => (
                                       <TableRow key={item.item_name}>
                                         <TableCell>
                                           <Checkbox checked={selectedItems.has(item.item_name)} onCheckedChange={() => toggleItemSelection(item.item_name)} />
                                         </TableCell>
-                                        <TableCell className="font-medium">{item.item_name}</TableCell>
-                                        <TableCell>{item.cat_name}</TableCell>
-                                        <TableCell>{item.unit_short}</TableCell>
+                                         <TableCell className="font-medium">{toProperCase(item.item_name)}</TableCell>
+                                        <TableCell>{toProperCase(item.cat_name)}</TableCell>
+                                        <TableCell>{toProperCase(item.unit_short)}</TableCell>
                                         <TableCell className="text-right">{item.req_qty}</TableCell>
                                         <TableCell className="text-right font-semibold">{getMultipliedQty(item.req_qty)}</TableCell>
                                       </TableRow>
@@ -554,9 +554,9 @@ const DayRequirementsPage: React.FC = () => {
                   existingRequirements.map((req, index) => (
                     <TableRow key={index}>
                       <TableCell>{req.day_req_date}</TableCell>
-                      <TableCell className="font-medium">{req.recipe_type}</TableCell>
+                      <TableCell className="font-medium">{toProperCase(req.recipe_type)}</TableCell>
                       <TableCell className="text-right">{req.day_tot_req}</TableCell>
-                      <TableCell>{req.created_by}</TableCell>
+                      <TableCell>{toProperCase(req.created_by)}</TableCell>
                       <TableCell>
                         <Button
                           variant="ghost"

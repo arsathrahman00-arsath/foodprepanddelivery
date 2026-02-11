@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { unitApi } from "@/lib/api";
+import { alphabetOnly } from "@/lib/utils";
 
 const schema = z.object({
   unit_name: z.string().min(1, "Required").max(50),
@@ -26,6 +27,7 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingNames, setExistingNames] = useState<Set<string>>(new Set());
+  const [existingShorts, setExistingShorts] = useState<Set<string>>(new Set());
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -37,7 +39,9 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
       try {
         const res = await unitApi.getAll();
         if (res.status === "success" || res.status === "ok") {
-          setExistingNames(new Set((res.data || []).map((r: any) => r.unit_name?.toLowerCase())));
+          const data = res.data || [];
+          setExistingNames(new Set(data.map((r: any) => r.unit_name?.toLowerCase())));
+          setExistingShorts(new Set(data.map((r: any) => r.unit_short?.toLowerCase())));
         }
       } catch {}
     };
@@ -47,6 +51,10 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
   const onSubmit = async (data: FormData) => {
     if (existingNames.has(data.unit_name.trim().toLowerCase())) {
       setError(`Unit "${data.unit_name.trim()}" already exists`);
+      return;
+    }
+    if (existingShorts.has(data.unit_short.trim().toLowerCase())) {
+      setError(`Unit Short "${data.unit_short.trim()}" already exists`);
       return;
     }
     setIsLoading(true);
@@ -60,6 +68,7 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
 
       if (response.status === "success" || response.status === "ok") {
         existingNames.add(data.unit_name.trim().toLowerCase());
+        existingShorts.add(data.unit_short.trim().toLowerCase());
         form.reset();
         onSuccess?.();
       } else {
@@ -84,6 +93,7 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
         <Input
           id="unit_name"
           placeholder="e.g., Kilogram"
+          onKeyDown={alphabetOnly}
           {...form.register("unit_name")}
           className="h-10"
         />
@@ -96,6 +106,7 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
         <Input
           id="unit_short"
           placeholder="e.g., kg, g, l"
+          onKeyDown={alphabetOnly}
           {...form.register("unit_short")}
           className="h-10"
         />

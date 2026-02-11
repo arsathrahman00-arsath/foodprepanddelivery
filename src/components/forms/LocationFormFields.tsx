@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { locationApi } from "@/lib/api";
+import { alphabetOnly } from "@/lib/utils";
 
 const locationSchema = z.object({
   masjid_name: z.string().min(1, "Required").max(100),
@@ -68,6 +69,7 @@ const LocationFormFields: React.FC<Props> = ({ onSuccess }) => {
         <Input
           id="masjid_name"
           placeholder="Enter masjid name"
+          onKeyDown={alphabetOnly}
           {...form.register("masjid_name")}
           className="h-10"
         />
@@ -92,6 +94,7 @@ const LocationFormFields: React.FC<Props> = ({ onSuccess }) => {
         <Input
           id="city"
           placeholder="Enter city"
+          onKeyDown={alphabetOnly}
           {...form.register("city")}
           className="h-10"
         />

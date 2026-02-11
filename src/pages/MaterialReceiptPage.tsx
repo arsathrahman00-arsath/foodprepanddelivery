@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import { cn, numericOnly, toProperCase } from "@/lib/utils";
 
 // API for fetching day requirement qty per item
 const dayReqQtyApi = {
@@ -373,8 +373,8 @@ const MaterialReceiptPage: React.FC = () => {
                       <TableBody>
                         {group.items.map((item) => (
                           <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.item_name}</TableCell>
-                            <TableCell>{item.unit_short}</TableCell>
+                            <TableCell className="font-medium">{toProperCase(item.item_name)}</TableCell>
+                            <TableCell>{toProperCase(item.unit_short)}</TableCell>
                             <TableCell>
                               {item.isLoadingDayReq ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -390,6 +390,7 @@ const MaterialReceiptPage: React.FC = () => {
                                 placeholder="Enter qty"
                                 value={item.received_qty}
                                 onChange={(e) => updateReceivedQty(group.id, item.id, e.target.value)}
+                                onKeyDown={numericOnly}
                                 className="h-9"
                               />
                             </TableCell>

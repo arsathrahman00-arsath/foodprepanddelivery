@@ -21,7 +21,6 @@ const loginSchema = z.object({
 
 const registerSchema = z.object({
   user_name: z.string().min(1, "Username is required").max(50, "Username too long"),
-  user_code: z.string().min(1, "User code is required").max(20, "User code too long"),
   user_pwd: z.string().min(4, "Password must be at least 4 characters").max(100, "Password too long"),
   confirm_pwd: z.string().min(1, "Please confirm your password"),
   role_selection: z.string().min(1, "Please select a role"),
@@ -47,7 +46,7 @@ const AuthPage: React.FC = () => {
 
   const registerForm = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { user_name: "", user_code: "", user_pwd: "", confirm_pwd: "", role_selection: "" },
+    defaultValues: { user_name: "", user_pwd: "", confirm_pwd: "", role_selection: "" },
   });
 
   const handleLogin = async (data: LoginFormData) => {
@@ -93,7 +92,7 @@ const AuthPage: React.FC = () => {
     try {
       const response = await authApi.register({
         user_name: data.user_name,
-        user_code: data.user_code,
+        user_code: "",
         user_pwd: data.user_pwd,
         role_selection: data.role_selection,
       });
@@ -200,32 +199,17 @@ const AuthPage: React.FC = () => {
               {/* Register Form */}
               <TabsContent value="register">
                 <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-username">Username</Label>
-                      <Input
-                        id="reg-username"
-                        placeholder="Username"
-                        {...registerForm.register("user_name")}
-                        className="h-11"
-                      />
-                      {registerForm.formState.errors.user_name && (
-                        <p className="text-sm text-destructive">{registerForm.formState.errors.user_name.message}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-usercode">User Code</Label>
-                      <Input
-                        id="reg-usercode"
-                        placeholder="User code"
-                        {...registerForm.register("user_code")}
-                        className="h-11"
-                      />
-                      {registerForm.formState.errors.user_code && (
-                        <p className="text-sm text-destructive">{registerForm.formState.errors.user_code.message}</p>
-                      )}
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-username">Username</Label>
+                    <Input
+                      id="reg-username"
+                      placeholder="Enter your username"
+                      {...registerForm.register("user_name")}
+                      className="h-11"
+                    />
+                    {registerForm.formState.errors.user_name && (
+                      <p className="text-sm text-destructive">{registerForm.formState.errors.user_name.message}</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
