@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Plus, RefreshCw, AlertCircle } from "lucide-react";
 import { toProperCase } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 
@@ -50,6 +60,8 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const formInteracted = useRef(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -73,6 +85,7 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
   }, []);
 
   const handleFormSuccess = () => {
+    formInteracted.current = false;
     setIsModalOpen(false);
     onFormSuccess();
     loadData();
@@ -80,6 +93,25 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
       title: "Success",
       description: "Record added successfully",
     });
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      // Trying to close — check if form was interacted with
+      if (formInteracted.current) {
+        setShowCloseWarning(true);
+        return;
+      }
+    } else {
+      formInteracted.current = false;
+    }
+    setIsModalOpen(open);
+  };
+
+  const handleConfirmClose = () => {
+    formInteracted.current = false;
+    setShowCloseWarning(false);
+    setIsModalOpen(false);
   };
 
   return (
@@ -177,8 +209,12 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
         </CardContent>
       </Card>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" forceMount={undefined}>
+      <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
+        <DialogContent
+          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {icon}
@@ -188,12 +224,29 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
               Fill in the details below to create a new record
             </DialogDescription>
           </DialogHeader>
-          {React.cloneElement(formComponent as React.ReactElement, {
-            onSuccess: handleFormSuccess,
-            isModal: true,
-          })}
+          <div onInput={() => { formInteracted.current = true; }} onChange={() => { formInteracted.current = true; }}>
+            {React.cloneElement(formComponent as React.ReactElement, {
+              onSuccess: handleFormSuccess,
+              isModal: true,
+            })}
+          </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Do you want to close the form without saving?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClose}>Yes</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

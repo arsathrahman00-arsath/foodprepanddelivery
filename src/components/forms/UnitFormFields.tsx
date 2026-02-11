@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { unitApi } from "@/lib/api";
-import { alphabetOnly } from "@/lib/utils";
+import { alphabetOnly, toProperCase } from "@/lib/utils";
 
 const schema = z.object({
   unit_name: z.string().min(1, "Required").max(50),
@@ -61,8 +61,8 @@ const UnitFormFields: React.FC<Props> = ({ onSuccess }) => {
     setError(null);
     try {
       const response = await unitApi.create({
-        unit_name: data.unit_name,
-        unit_short: data.unit_short,
+        unit_name: toProperCase(data.unit_name.trim()),
+        unit_short: toProperCase(data.unit_short.trim()),
         created_by: user?.user_name || "",
       });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, ClipboardList, Download, Loader2, Plus, Save } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn, toProperCase } from "@/lib/utils";
 import { dayRequirementsApi } from "@/lib/api";
@@ -62,6 +72,8 @@ const DayRequirementsPage: React.FC = () => {
   const [existingRequirements, setExistingRequirements] = useState<ExistingRequirement[]>([]);
   const [isLoadingExisting, setIsLoadingExisting] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const formInteracted = useRef(false);
 
   // Dialog state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -312,6 +324,7 @@ const DayRequirementsPage: React.FC = () => {
       );
 
       toast({ title: "Success", description: "Day requirements saved successfully" });
+      formInteracted.current = false;
       setDialogOpen(false);
       resetDialog();
       fetchExistingRequirements();
@@ -324,7 +337,7 @@ const DayRequirementsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+                <div className="space-y-6" onInput={() => { formInteracted.current = true; }} onChange={() => { formInteracted.current = true; }}>
       <Card className="shadow-warm border-0">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
@@ -337,11 +350,22 @@ const DayRequirementsPage: React.FC = () => {
                 <CardDescription>Plan daily ingredient requirements based on recipes</CardDescription>
               </div>
             </div>
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); }}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              if (!open && formInteracted.current) {
+                setShowCloseWarning(true);
+                return;
+              }
+              if (open) formInteracted.current = false;
+              setDialogOpen(open);
+            }}>
               <DialogTrigger asChild>
                 <Button className="gap-2"><Plus className="w-4 h-4" /> Add Day Requirement</Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogContent
+                className="sm:max-w-4xl max-h-[90vh] overflow-y-auto"
+                onInteractOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+              >
                 <DialogHeader>
                   <DialogTitle>Add Day Requirement</DialogTitle>
                 </DialogHeader>
@@ -580,6 +604,21 @@ const DayRequirementsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Do you want to close the form without saving?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { formInteracted.current = false; setShowCloseWarning(false); setDialogOpen(false); resetDialog(); }}>Yes</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

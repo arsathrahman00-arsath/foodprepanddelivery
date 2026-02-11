@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { recipeTypeApi } from "@/lib/api";
-import { alphabetOnly, numericOnly } from "@/lib/utils";
+import { alphabetOnly, numericOnly, toProperCase } from "@/lib/utils";
 
 const schema = z.object({
   recipe_type: z.string().min(1, "Required").max(50),
@@ -55,7 +55,7 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
     setError(null);
     try {
       const response = await recipeTypeApi.create({
-        recipe_type: data.recipe_type,
+        recipe_type: toProperCase(data.recipe_type.trim()),
         recipe_perkg: data.recipe_perkg,
         recipe_totpkt: data.recipe_totpkt,
         created_by: user?.user_name || "",

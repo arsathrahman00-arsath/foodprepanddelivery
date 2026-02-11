@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { supplierApi } from "@/lib/api";
-import { alphabetOnly } from "@/lib/utils";
+import { alphabetOnly, toProperCase } from "@/lib/utils";
 
 const schema = z.object({
   sup_name: z.string().min(1, "Required").max(100),
@@ -56,9 +56,9 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
     setError(null);
     try {
       const response = await supplierApi.create({
-        sup_name: data.sup_name,
-        sup_add: data.sup_add,
-        sup_city: data.sup_city,
+        sup_name: toProperCase(data.sup_name.trim()),
+        sup_add: toProperCase(data.sup_add.trim()),
+        sup_city: toProperCase(data.sup_city.trim()),
         sup_mobile: data.sup_mobile,
         created_by: user?.user_name || "",
       });

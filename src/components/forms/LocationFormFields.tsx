@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { locationApi } from "@/lib/api";
-import { alphabetOnly } from "@/lib/utils";
+import { alphabetOnly, toProperCase } from "@/lib/utils";
 
 const locationSchema = z.object({
   masjid_name: z.string().min(1, "Required").max(100),
@@ -38,9 +38,9 @@ const LocationFormFields: React.FC<Props> = ({ onSuccess }) => {
     setError(null);
     try {
       const response = await locationApi.create({
-        masjid_name: data.masjid_name,
-        address: data.address,
-        city: data.city,
+        masjid_name: toProperCase(data.masjid_name.trim()),
+        address: toProperCase(data.address.trim()),
+        city: toProperCase(data.city.trim()),
         created_by: user?.user_name || "",
       });
 
