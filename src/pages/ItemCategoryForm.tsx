@@ -2,6 +2,7 @@ import React from "react";
 import { Tag } from "lucide-react";
 import MasterDataTable from "@/components/MasterDataTable";
 import ItemCategoryFormFields from "@/components/forms/ItemCategoryFormFields";
+import ItemCategoryEditForm from "@/components/forms/ItemCategoryEditForm";
 import { itemCategoryApi } from "@/lib/api";
 
 const columns = [
@@ -18,7 +19,14 @@ const ItemCategoryPage: React.FC = () => {
       columns={columns}
       fetchData={itemCategoryApi.getAll}
       formComponent={<ItemCategoryFormFields />}
+      editFormComponent={<ItemCategoryEditForm />}
       onFormSuccess={() => {}}
+      editDeleteConfig={{
+        idKey: "cat_code",
+        editFields: ["cat_code", "cat_name"],
+        updateApi: itemCategoryApi.update,
+        deleteApi: itemCategoryApi.delete,
+      }}
     />
   );
 };

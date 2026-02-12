@@ -2,6 +2,7 @@ import React from "react";
 import { UtensilsCrossed } from "lucide-react";
 import MasterDataTable from "@/components/MasterDataTable";
 import RecipeFormFields from "@/components/forms/RecipeFormFields";
+import RecipeEditForm from "@/components/forms/RecipeEditForm";
 import { recipeApi } from "@/lib/api";
 
 const columns = [
@@ -21,7 +22,14 @@ const RecipePage: React.FC = () => {
       columns={columns}
       fetchData={recipeApi.getAll}
       formComponent={<RecipeFormFields />}
+      editFormComponent={<RecipeEditForm />}
       onFormSuccess={() => {}}
+      editDeleteConfig={{
+        idKey: "recipe_code",
+        editFields: ["recipe_code", "recipe_type", "item_name", "item_code", "cat_name", "unit_short", "req_qty"],
+        updateApi: recipeApi.update,
+        deleteApi: recipeApi.delete,
+      }}
     />
   );
 };

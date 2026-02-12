@@ -2,6 +2,7 @@ import React from "react";
 import { Package } from "lucide-react";
 import MasterDataTable from "@/components/MasterDataTable";
 import ItemFormFields from "@/components/forms/ItemFormFields";
+import ItemEditForm from "@/components/forms/ItemEditForm";
 import { itemApi } from "@/lib/api";
 
 const columns = [
@@ -20,7 +21,14 @@ const ItemPage: React.FC = () => {
       columns={columns}
       fetchData={itemApi.getAll}
       formComponent={<ItemFormFields />}
+      editFormComponent={<ItemEditForm />}
       onFormSuccess={() => {}}
+      editDeleteConfig={{
+        idKey: "item_code",
+        editFields: ["item_code", "item_name", "cat_name", "unit_short"],
+        updateApi: itemApi.update,
+        deleteApi: itemApi.delete,
+      }}
     />
   );
 };

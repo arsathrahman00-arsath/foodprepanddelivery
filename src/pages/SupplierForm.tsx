@@ -2,6 +2,7 @@ import React from "react";
 import { Truck } from "lucide-react";
 import MasterDataTable from "@/components/MasterDataTable";
 import SupplierFormFields from "@/components/forms/SupplierFormFields";
+import SupplierEditForm from "@/components/forms/SupplierEditForm";
 import { supplierApi } from "@/lib/api";
 
 const columns = [
@@ -21,7 +22,14 @@ const SupplierPage: React.FC = () => {
       columns={columns}
       fetchData={supplierApi.getAll}
       formComponent={<SupplierFormFields />}
+      editFormComponent={<SupplierEditForm />}
       onFormSuccess={() => {}}
+      editDeleteConfig={{
+        idKey: "sup_code",
+        editFields: ["sup_code", "sup_name", "sup_add", "sup_city", "sup_mobile"],
+        updateApi: supplierApi.update,
+        deleteApi: supplierApi.delete,
+      }}
     />
   );
 };

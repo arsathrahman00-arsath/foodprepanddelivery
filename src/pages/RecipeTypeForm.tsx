@@ -2,6 +2,7 @@ import React from "react";
 import { BookOpen } from "lucide-react";
 import MasterDataTable from "@/components/MasterDataTable";
 import RecipeTypeFormFields from "@/components/forms/RecipeTypeFormFields";
+import RecipeTypeEditForm from "@/components/forms/RecipeTypeEditForm";
 import { recipeTypeApi } from "@/lib/api";
 
 const columns = [
@@ -20,7 +21,14 @@ const RecipeTypePage: React.FC = () => {
       columns={columns}
       fetchData={recipeTypeApi.getAll}
       formComponent={<RecipeTypeFormFields />}
+      editFormComponent={<RecipeTypeEditForm />}
       onFormSuccess={() => {}}
+      editDeleteConfig={{
+        idKey: "recipe_code",
+        editFields: ["recipe_code", "recipe_type", "recipe_perkg", "recipe_totpkt"],
+        updateApi: recipeTypeApi.update,
+        deleteApi: recipeTypeApi.delete,
+      }}
     />
   );
 };
