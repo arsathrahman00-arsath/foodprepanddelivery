@@ -81,6 +81,10 @@ export const locationApi = {
   }) => postFormData("/masterlocation/", data),
   
   getAll: () => getData("/get_masterlocation/"),
+
+  update: (data: Record<string, string>) => postFormData("/updatelocation/", data),
+
+  delete: (data: Record<string, string>) => postFormData("/deletelocation/", data),
 };
 
 // Item Category endpoints
@@ -91,6 +95,10 @@ export const itemCategoryApi = {
   }) => postFormData("/masteritemcategory/", data),
   
   getAll: () => getData("/get_masteritemcategory/"),
+
+  update: (data: Record<string, string>) => postFormData("/updateitemcategory/", data),
+
+  delete: (data: Record<string, string>) => postFormData("/deleteitemcat/", data),
 };
 
 // Unit endpoints
@@ -102,6 +110,10 @@ export const unitApi = {
   }) => postFormData("/masterunit/", data),
   
   getAll: () => getData("/get_masterunit/"),
+
+  update: (data: Record<string, string>) => postFormData("/updateunit/", data),
+
+  delete: (data: Record<string, string>) => postFormData("/deleteunit/", data),
 };
 
 // Item endpoints
@@ -114,6 +126,10 @@ export const itemApi = {
   }) => postFormData("/masteritem/", data),
   
   getAll: () => getData("/get_masteritem/"),
+
+  update: (data: Record<string, string>) => postFormData("/updateitem/", data),
+
+  delete: (data: Record<string, string>) => postFormData("/deleteitem/", data),
 };
 
 // Supplier endpoints
@@ -127,6 +143,10 @@ export const supplierApi = {
   }) => postFormData("/mastersupplier/", data),
   
   getAll: () => getData("/get_mastersupplier/"),
+
+  update: (data: Record<string, string>) => postFormData("/updatesupplier/", data),
+
+  delete: (data: Record<string, string>) => postFormData("/deletesupplier/", data),
 };
 
 // Recipe Type endpoints
@@ -139,6 +159,10 @@ export const recipeTypeApi = {
   }) => postFormData("/masterrecipttype/", data),
   
   getAll: () => getData("/get_masterrecipttype/"),
+
+  update: (data: Record<string, string>) => postFormData("/updaterecipetype/", data),
+
+  delete: (data: Record<string, string>) => postFormData("/deleterecipetype/", data),
 };
 
 // Category and Unit combined endpoint
@@ -161,6 +185,10 @@ export const recipeApi = {
   }) => postFormData("/masterrecipe/", data),
   
   getAll: () => getData("/get_masterrecipe/"),
+
+  update: (data: Record<string, string>) => postFormData("/updaterecipe/", data),
+
+  delete: (data: Record<string, string>) => postFormData("/deleterecipe/", data),
 };
 
 // Item with codes endpoint (for Recipe form)
@@ -183,6 +211,8 @@ export const deliveryScheduleApi = {
   }) => postFormData("/Deliveryplanschedule/", data),
   
   getAll: () => getData("/get_Deliveryplanschedule/"),
+
+  update: (data: Record<string, string>) => postFormData("/updateschedule/", data),
 };
 
 // Delivery Plan Requirement endpoints
@@ -196,6 +226,8 @@ export const deliveryRequirementApi = {
   }) => postFormData("/Deliveryplanrequirement/", data),
   
   getAll: () => getData("/get_Deliveryplanrequirement/"),
+
+  update: (data: Record<string, string>) => postFormData("/updaterequirement/", data),
 };
 
 // Masjid list endpoint (for Requirement form)
@@ -210,16 +242,9 @@ export const recipeTypeListApi = {
 
 // Day Requirements API endpoints
 export const dayRequirementsApi = {
-  // Get daily requirements by date - new endpoint
   getByDate: (date: string) => postFormData("/get_recipe_and_qty_by_date/", { date }),
-  
-  // Get recipe totpkt by recipe type (POST request)
   getRecipeTotpkt: (recipeType: string) => postFormData("/get_recipe_totpkt_by_type/", { recipe_type: recipeType }),
-  
-  // Get recipe items by recipe type (POST request)
   getRecipeItems: (recipeType: string) => postFormData("/dayrequirment/", { recipe_type: recipeType }),
-  
-  // Submit header data
   createHeader: (data: {
     day_req_date: string;
     recipe_type: string;
@@ -227,8 +252,6 @@ export const dayRequirementsApi = {
     day_tot_req: string;
     created_by: string;
   }) => postFormData("/requirment_hd/", data),
-  
-  // Submit transaction data
   createTransaction: (data: {
     day_req_date: string;
     recipe_code: string;
@@ -324,19 +347,10 @@ export const mediaApi = {
 
 // Material Receipt API endpoints
 export const materialReceiptApi = {
-  // Get supplier names for dropdown
   getSuppliers: () => getData("/get_suppliername/"),
-  
-  // Get categories for dropdown
   getCategories: () => getData("/get_mastercatunit/"),
-  
-  // Get items for dropdown
   getItems: () => getData("/get_master_item/"),
-  
-  // Get units for dropdown
   getUnits: () => getData("/get_unitname/"),
-  
-  // Create material receipt
   create: (data: {
     mat_rec_date: string;
     sup_name: string;

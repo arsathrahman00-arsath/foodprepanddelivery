@@ -2,6 +2,7 @@ import React from "react";
 import { MapPin } from "lucide-react";
 import MasterDataTable from "@/components/MasterDataTable";
 import LocationFormFields from "@/components/forms/LocationFormFields";
+import LocationEditForm from "@/components/forms/LocationEditForm";
 import { locationApi } from "@/lib/api";
 
 const columns = [
@@ -20,7 +21,14 @@ const LocationPage: React.FC = () => {
       columns={columns}
       fetchData={locationApi.getAll}
       formComponent={<LocationFormFields />}
+      editFormComponent={<LocationEditForm />}
       onFormSuccess={() => {}}
+      editDeleteConfig={{
+        idKey: "masjid_code",
+        editFields: ["masjid_code", "masjid_name", "address", "city"],
+        updateApi: locationApi.update,
+        deleteApi: locationApi.delete,
+      }}
     />
   );
 };

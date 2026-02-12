@@ -2,6 +2,7 @@ import React from "react";
 import { Ruler } from "lucide-react";
 import MasterDataTable from "@/components/MasterDataTable";
 import UnitFormFields from "@/components/forms/UnitFormFields";
+import UnitEditForm from "@/components/forms/UnitEditForm";
 import { unitApi } from "@/lib/api";
 
 const columns = [
@@ -19,7 +20,14 @@ const UnitPage: React.FC = () => {
       columns={columns}
       fetchData={unitApi.getAll}
       formComponent={<UnitFormFields />}
+      editFormComponent={<UnitEditForm />}
       onFormSuccess={() => {}}
+      editDeleteConfig={{
+        idKey: "unit_code",
+        editFields: ["unit_code", "unit_name", "unit_short"],
+        updateApi: unitApi.update,
+        deleteApi: unitApi.delete,
+      }}
     />
   );
 };
