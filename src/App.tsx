@@ -19,6 +19,7 @@ import SchedulePage from "@/pages/SchedulePage";
 import RequirementPage from "@/pages/RequirementPage";
 import DayRequirementsPage from "@/pages/DayRequirementsPage";
 import MaterialReceiptPage from "@/pages/MaterialReceiptPage";
+import RequestSupplierPage from "@/pages/RequestSupplierPage";
 import PackingPage from "@/pages/PackingPage";
 import CookingPage from "@/pages/CookingPage";
 import FoodAllocationPage from "@/pages/FoodAllocationPage";
@@ -58,6 +59,7 @@ const App = () => (
                 <Route path="/dashboard/requirement" element={<RequirementPage />} />
                 <Route path="/dashboard/day-requirements" element={<DayRequirementsPage />} />
                 <Route path="/dashboard/material-receipt" element={<MaterialReceiptPage />} />
+                <Route path="/dashboard/request-supplier" element={<RequestSupplierPage />} />
                 <Route path="/dashboard/packing" element={<PackingPage />} />
                 <Route path="/dashboard/cooking" element={<CookingPage />} />
                 <Route path="/dashboard/food-allocation" element={<FoodAllocationPage />} />
