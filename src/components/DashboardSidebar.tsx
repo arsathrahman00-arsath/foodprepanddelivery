@@ -78,6 +78,7 @@ const deliveryPlanMenuItems = [
 const preparationMenuItems = [
   { to: "/dashboard/day-requirements", icon: <ListChecks className="w-4 h-4" />, label: "Day Requirements" },
   { to: "/dashboard/material-receipt", icon: <Package className="w-4 h-4" />, label: "Material Receipt" },
+  { to: "/dashboard/request-supplier", icon: <ClipboardList className="w-4 h-4" />, label: "Request For Supplier" },
 ];
 
 const distributionMenuItems = [

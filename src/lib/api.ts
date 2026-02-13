@@ -345,6 +345,12 @@ export const mediaApi = {
     postFormData("/show_clean_media/", { clean_date: date, clean_type: type }),
 };
 
+// Supplier Requisition API endpoints
+export const supplierRequisitionApi = {
+  getItems: (data: { cat_code: string; day_req_date: string; recipe_code: string }) =>
+    postFormData("/requestionsupplier/", data),
+};
+
 // Material Receipt API endpoints
 export const materialReceiptApi = {
   getSuppliers: () => getData("/get_suppliername/"),
