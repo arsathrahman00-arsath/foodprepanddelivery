@@ -27,7 +27,7 @@ const RecipePage: React.FC = () => {
       editDeleteConfig={{
         idKey: "recipe_code",
         editFields: ["recipe_code", "recipe_type", "item_name", "item_code", "cat_name", "unit_short", "req_qty"],
-        updateApi: recipeApi.update,
+        updateApi: (data: Record<string, string>) => recipeApi.update({ recipe_code: data.recipe_code, req_qty: data.req_qty }),
         deleteApi: recipeApi.delete,
       }}
     />

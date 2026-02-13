@@ -24,6 +24,7 @@ interface RecipeItem {
   cat_code: string;
   unit_short: string;
   req_qty: string;
+  isExisting?: boolean;
 }
 
 interface ItemSendData {
@@ -43,17 +44,13 @@ interface RecipeTypeData {
   recipe_code?: number;
 }
 
-interface Props {
-  onSuccess?: () => void;
-  isModal?: boolean;
-}
-
 /** Searchable item select dropdown */
 const ItemSearchSelect: React.FC<{
   value: string;
   onValueChange: (value: string) => void;
   items: ItemSendData[];
-}> = ({ value, onValueChange, items }) => {
+  disabled?: boolean;
+}> = ({ value, onValueChange, items, disabled }) => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -63,6 +60,14 @@ const ItemSearchSelect: React.FC<{
       item.item_name.toLowerCase().includes(search.toLowerCase())
     );
   }, [items, search]);
+
+  if (disabled) {
+    return (
+      <Button variant="outline" className="h-9 w-full justify-between text-sm font-normal bg-muted" disabled>
+        {value || <span className="text-muted-foreground">Select item</span>}
+      </Button>
+    );
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -108,6 +113,11 @@ const ItemSearchSelect: React.FC<{
   );
 };
 
+interface Props {
+  onSuccess?: () => void;
+  isModal?: boolean;
+}
+
 const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -117,6 +127,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
   const [recipeTypes, setRecipeTypes] = useState<RecipeTypeData[]>([]);
   const [items, setItems] = useState<ItemSendData[]>([]);
   const [itemDetails, setItemDetails] = useState<ItemDetailData[]>([]);
+  const [existingRecipes, setExistingRecipes] = useState<any[]>([]);
   const [loadingDropdowns, setLoadingDropdowns] = useState(true);
   
   // Form state
@@ -131,15 +142,12 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
     const loadDropdownData = async () => {
       setLoadingDropdowns(true);
       try {
-        const [recipeTypeRes, itemRes, itemDetailRes] = await Promise.all([
+        const [recipeTypeRes, itemRes, itemDetailRes, existingRes] = await Promise.all([
           recipeTypeApi.getAll(),
           itemSendApi.getAll(),
           itemDetailsApi.getAll(),
+          recipeApi.getAll(),
         ]);
-        
-        console.log("Recipe Types:", recipeTypeRes);
-        console.log("Items:", itemRes);
-        console.log("Item Details:", itemDetailRes);
         
         if (recipeTypeRes.status === "success" || recipeTypeRes.status === "ok") {
           setRecipeTypes(recipeTypeRes.data || []);
@@ -149,6 +157,9 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
         }
         if (itemDetailRes.status === "success" || itemDetailRes.status === "ok") {
           setItemDetails(itemDetailRes.data || []);
+        }
+        if (existingRes.status === "success" || existingRes.status === "ok") {
+          setExistingRecipes(existingRes.data || []);
         }
       } catch (err) {
         console.error("Failed to load dropdown data:", err);
@@ -161,23 +172,62 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
     loadDropdownData();
   }, []);
 
-  // Handle recipe type selection
+  // Handle recipe type selection - auto-populate existing items
   const handleRecipeTypeChange = (value: string) => {
     setSelectedRecipeType(value);
     const selectedType = recipeTypes.find(rt => rt.recipe_type === value);
     setSelectedRecipeCode(selectedType?.recipe_code?.toString() || value);
+
+    // Find existing items for this recipe type
+    const existingForType = existingRecipes.filter(
+      (r: any) => r.recipe_type === value
+    );
+
+    if (existingForType.length > 0) {
+      const existingRows: RecipeItem[] = existingForType.map((r: any, idx: number) => ({
+        id: `existing-${idx}-${Date.now()}`,
+        item_name: r.item_name || "",
+        item_code: r.item_code?.toString() || "",
+        cat_name: r.cat_name || "",
+        cat_code: r.cat_code?.toString() || "",
+        unit_short: r.unit_short || "",
+        req_qty: r.req_qty?.toString() || "",
+        isExisting: true,
+      }));
+      // Add one empty row for new entries
+      existingRows.push({
+        id: Date.now().toString(),
+        item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "",
+      });
+      setRecipeItems(existingRows);
+    } else {
+      setRecipeItems([
+        { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "" }
+      ]);
+    }
   };
 
   // Handle item selection for a specific row
   const handleItemChange = useCallback((rowId: string, value: string) => {
-    // Find item to get item_code
+    // Check if item already exists for this recipe type (in existing records or current rows)
+    const alreadyInRows = recipeItems.some(
+      (r) => r.id !== rowId && r.item_name === value
+    );
+    const alreadyInExisting = existingRecipes.some(
+      (r: any) => r.recipe_type === selectedRecipeType && r.item_name === value
+    );
+
+    if (alreadyInRows || alreadyInExisting) {
+      toast({
+        title: "Duplicate Item",
+        description: "This item already exists for the selected Recipe Type.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const selectedItem = items.find((item: ItemSendData) => item.item_name === value);
-    
-    // Find matching item detail by item_name for category and unit
     const detail = itemDetails.find((d: ItemDetailData) => d.item_name === value);
-    
-    console.log("Selected item:", selectedItem);
-    console.log("Matched detail:", detail);
     
     setRecipeItems((prev) =>
       prev.map((row) =>
@@ -193,7 +243,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
           : row
       )
     );
-  }, [items, itemDetails]);
+  }, [items, itemDetails, recipeItems, existingRecipes, selectedRecipeType]);
 
   // Handle quantity change for a specific row
   const handleQtyChange = useCallback((rowId: string, value: string) => {
@@ -210,25 +260,26 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
     ]);
   };
 
-  // Remove row
+  // Remove row (only non-existing rows)
   const handleRemoveRow = (id: string) => {
-    if (recipeItems.length > 1) {
-      setRecipeItems((prev) => prev.filter((row) => row.id !== id));
+    const row = recipeItems.find((r) => r.id === id);
+    if (row?.isExisting) return;
+    if (recipeItems.filter((r) => !r.isExisting).length > 1 || recipeItems.length > 1) {
+      setRecipeItems((prev) => prev.filter((r) => r.id !== id));
     }
   };
 
-  // Submit all recipe items
+  // Submit only new recipe items (not existing ones)
   const handleSubmit = async () => {
     if (!selectedRecipeType) {
       setError("Please select a recipe type");
       return;
     }
 
-    // Filter valid items (those with item_name and qty)
-    const validItems = recipeItems.filter((item) => item.item_name && item.req_qty);
+    const newItems = recipeItems.filter((item) => !item.isExisting && item.item_name && item.req_qty);
 
-    if (validItems.length === 0) {
-      setError("Please add at least one item with quantity");
+    if (newItems.length === 0) {
+      setError("Please add at least one new item with quantity");
       return;
     }
     
@@ -236,8 +287,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
     setError(null);
     
     try {
-      // Submit each item as a separate record
-      for (const item of validItems) {
+      for (const item of newItems) {
         const payload = {
           recipe_type: selectedRecipeType,
           recipe_code: selectedRecipeCode || selectedRecipeType,
@@ -250,11 +300,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
           created_by: user?.user_name || "",
         };
         
-        console.log("Submitting recipe item:", payload);
-        
         const response = await recipeApi.create(payload);
-        
-        console.log("Recipe API response:", response);
         
         if (response.status !== "success" && response.status !== "ok") {
           throw new Error(response.message || "Failed to create recipe");
@@ -263,15 +309,23 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
       
       toast({
         title: "Recipe saved successfully",
-        description: `${validItems.length} item(s) added to the recipe.`,
+        description: `${newItems.length} item(s) added to the recipe.`,
       });
       
-      // Reset form on success
       setSelectedRecipeType("");
       setSelectedRecipeCode("");
       setRecipeItems([
         { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "" },
       ]);
+      
+      // Refresh existing recipes
+      try {
+        const res = await recipeApi.getAll();
+        if (res.status === "success" || res.status === "ok") {
+          setExistingRecipes(res.data || []);
+        }
+      } catch {}
+      
       onSuccess?.();
     } catch (err: any) {
       console.error("Recipe submission error:", err);
@@ -290,7 +344,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
     );
   }
 
-  const validItemCount = recipeItems.filter((item) => item.item_name && item.req_qty).length;
+  const newItemCount = recipeItems.filter((item) => !item.isExisting && item.item_name && item.req_qty).length;
 
   return (
     <div className="space-y-6">
@@ -324,9 +378,9 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
         {/* Header Row */}
         <div className="hidden md:grid md:grid-cols-12 gap-2 mb-2 text-xs font-medium text-muted-foreground">
           <div className="col-span-3">Item Name</div>
-          <div className="col-span-3">Category Name</div>
           <div className="col-span-2">Unit</div>
           <div className="col-span-3">Required Qty *</div>
+          <div className="col-span-3">Status</div>
           <div className="col-span-1">Action</div>
         </div>
 
@@ -334,7 +388,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
         <div className="space-y-3">
           {recipeItems.map((row) => (
             <div key={row.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start">
-              {/* Item Name Dropdown with Search */}
+              {/* Item Name */}
               <div className="md:col-span-3">
                 <Label className="md:hidden text-xs mb-1 block">Item Name</Label>
                 <ItemSearchSelect
@@ -344,18 +398,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
                     const usedNames = recipeItems.filter(r => r.id !== row.id).map(r => r.item_name);
                     return !usedNames.includes(item.item_name);
                   })}
-                />
-              </div>
-
-              {/* Category Name (Auto-filled) */}
-              <div className="md:col-span-3">
-                <Label className="md:hidden text-xs mb-1 block">Category Name</Label>
-                <Input
-                  value={row.cat_name}
-                  readOnly
-                  disabled
-                  placeholder="Select item first"
-                  className="h-9 bg-muted text-muted-foreground"
+                  disabled={row.isExisting}
                 />
               </div>
 
@@ -383,32 +426,51 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
                   onKeyDown={numericOnly}
                   placeholder="Enter qty"
                   className="h-9"
+                  disabled={row.isExisting}
                 />
+              </div>
+
+              {/* Status */}
+              <div className="md:col-span-3">
+                <Label className="md:hidden text-xs mb-1 block">Status</Label>
+                {row.isExisting ? (
+                  <span className="inline-flex items-center h-9 px-2 text-xs text-muted-foreground bg-muted rounded-md">
+                    Existing
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center h-9 px-2 text-xs text-primary">
+                    {row.item_name ? "New" : "—"}
+                  </span>
+                )}
               </div>
 
               {/* Add/Remove Buttons */}
               <div className="md:col-span-1 flex gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={handleAddRow}
-                  className="h-9 w-9"
-                  title="Add row"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-                {recipeItems.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleRemoveRow(row.id)}
-                    className="h-9 w-9 text-destructive hover:text-destructive"
-                    title="Remove row"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </Button>
+                {!row.isExisting && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleAddRow}
+                      className="h-9 w-9"
+                      title="Add row"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                    {recipeItems.filter((r) => !r.isExisting).length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleRemoveRow(row.id)}
+                        className="h-9 w-9 text-destructive hover:text-destructive"
+                        title="Remove row"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -422,10 +484,10 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
           type="button"
           onClick={handleSubmit}
           className="bg-gradient-warm hover:opacity-90 gap-2 w-full"
-          disabled={isLoading || validItemCount === 0 || !selectedRecipeType}
+          disabled={isLoading || newItemCount === 0 || !selectedRecipeType}
         >
           <Plus className="w-4 h-4" />
-          {isLoading ? "Saving..." : `Save Recipe (${validItemCount} items)`}
+          {isLoading ? "Saving..." : `Save Recipe (${newItemCount} new items)`}
         </Button>
       </div>
     </div>
