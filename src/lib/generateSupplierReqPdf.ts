@@ -16,34 +16,39 @@ interface SupplierReqPdfParams {
   items: SupplierReqItem[];
 }
 
+function formatDateDDMMYYYY(dateStr: string): string {
+  const parts = dateStr.split("-");
+  if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  return dateStr;
+}
+
 export function generateSupplierReqPdf(params: SupplierReqPdfParams): void {
-  const { date, recipeType, supplierName, categoryName, items } = params;
+  const { date, supplierName, items } = params;
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const formattedDate = formatDateDDMMYYYY(date);
 
   // Title
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.text("Request For Supplier", pageWidth / 2, 18, { align: "center" });
 
-  // Header info
+  // Date - top right, below heading
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  const headerY = 28;
-  doc.text(`Date: ${date}`, 14, headerY);
-  doc.text(`Recipe Type: ${recipeType}`, 14, headerY + 6);
-  doc.text(`Supplier: ${supplierName}`, pageWidth / 2, headerY);
-  doc.text(`Category: ${categoryName}`, pageWidth / 2, headerY + 6);
+  doc.text(`Date: ${formattedDate}`, pageWidth - 14, 28, { align: "right" });
+
+  // Supplier info
+  doc.text(`Supplier: ${supplierName}`, 14, 28);
 
   // Table
   autoTable(doc, {
-    startY: headerY + 16,
-    head: [["#", "Item Name", "Category", "Unit", "Required Qty"]],
+    startY: 36,
+    head: [["#", "Item Name", "Unit", "Required Qty"]],
     body: items.map((item, index) => [
       String(index + 1),
       item.item_name,
-      item.cat_name,
       item.unit_short,
       String(item.day_req_qty),
     ]),
