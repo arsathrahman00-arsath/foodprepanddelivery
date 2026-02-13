@@ -201,9 +201,49 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
       });
       setRecipeItems(existingRows);
     } else {
-      setRecipeItems([
-        { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "" }
-      ]);
+      // Find items common across ALL recipe types that have items
+      const recipeTypeGroups: Record<string, Set<string>> = {};
+      existingRecipes.forEach((r: any) => {
+        if (!recipeTypeGroups[r.recipe_type]) {
+          recipeTypeGroups[r.recipe_type] = new Set();
+        }
+        recipeTypeGroups[r.recipe_type].add(r.item_name);
+      });
+
+      const groupValues = Object.values(recipeTypeGroups);
+      let commonItemNames: string[] = [];
+      if (groupValues.length > 0) {
+        commonItemNames = [...groupValues[0]].filter((itemName) =>
+          groupValues.every((group) => group.has(itemName))
+        );
+      }
+
+      if (commonItemNames.length > 0) {
+        const commonRows: RecipeItem[] = commonItemNames.map((itemName, idx) => {
+          const recipeRecord = existingRecipes.find((r: any) => r.item_name === itemName);
+          const detail = itemDetails.find((d: ItemDetailData) => d.item_name === itemName);
+          const itemData = items.find((i: ItemSendData) => i.item_name === itemName);
+          return {
+            id: `common-${idx}-${Date.now()}`,
+            item_name: itemName,
+            item_code: itemData?.item_code?.toString() || recipeRecord?.item_code?.toString() || "",
+            cat_name: detail?.cat_name || recipeRecord?.cat_name || "",
+            cat_code: detail?.cat_code?.toString() || recipeRecord?.cat_code?.toString() || "",
+            unit_short: detail?.unit_short || recipeRecord?.unit_short || "",
+            req_qty: "",
+            isExisting: false,
+          };
+        });
+        commonRows.push({
+          id: Date.now().toString(),
+          item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "",
+        });
+        setRecipeItems(commonRows);
+      } else {
+        setRecipeItems([
+          { id: Date.now().toString(), item_name: "", item_code: "", cat_name: "", cat_code: "", unit_short: "", req_qty: "" }
+        ]);
+      }
     }
   };
 
