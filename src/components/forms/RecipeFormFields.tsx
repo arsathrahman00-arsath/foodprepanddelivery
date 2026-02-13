@@ -230,7 +230,7 @@ const RecipeFormFields: React.FC<Props> = ({ onSuccess }) => {
             cat_name: detail?.cat_name || recipeRecord?.cat_name || "",
             cat_code: detail?.cat_code?.toString() || recipeRecord?.cat_code?.toString() || "",
             unit_short: detail?.unit_short || recipeRecord?.unit_short || "",
-            req_qty: "",
+            req_qty: recipeRecord?.req_qty?.toString() || "",
             isExisting: false,
           };
         });
