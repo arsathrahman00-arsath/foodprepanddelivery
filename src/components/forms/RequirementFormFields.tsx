@@ -72,6 +72,7 @@ const RequirementFormFields: React.FC<RequirementFormFieldsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [masjidList, setMasjidList] = useState<MasjidOption[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [existingRecords, setExistingRecords] = useState<{ req_date: string; masjid_name: string }[]>([]);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -103,23 +104,32 @@ const RequirementFormFields: React.FC<RequirementFormFieldsProps> = ({
   );
 
   useEffect(() => {
-    const fetchMasjidList = async () => {
+    const fetchData = async () => {
       try {
-        const response = await masjidListApi.getAll();
-        if (response.status === "success" && response.data) {
-          setMasjidList(response.data.map((item: any) => ({
+        const [masjidResponse, reqResponse] = await Promise.all([
+          masjidListApi.getAll(),
+          deliveryRequirementApi.getAll(),
+        ]);
+        if (masjidResponse.status === "success" && masjidResponse.data) {
+          setMasjidList(masjidResponse.data.map((item: any) => ({
             masjid_name: item.masjid_name,
             masjid_code: item.masjid_code,
           })));
         }
+        if ((reqResponse.status === "success" || reqResponse.status === "ok") && reqResponse.data) {
+          setExistingRecords(reqResponse.data.map((item: any) => ({
+            req_date: item.req_date,
+            masjid_name: item.masjid_name?.toLowerCase(),
+          })));
+        }
       } catch (error) {
-        console.error("Failed to fetch masjid list:", error);
-        toast({ title: "Error", description: "Failed to load mosque list", variant: "destructive" });
+        console.error("Failed to fetch data:", error);
+        toast({ title: "Error", description: "Failed to load form data", variant: "destructive" });
       } finally {
         setIsLoadingData(false);
       }
     };
-    fetchMasjidList();
+    fetchData();
   }, [toast]);
 
   const onSubmit = async (data: FormData) => {
@@ -133,6 +143,25 @@ const RequirementFormFields: React.FC<RequirementFormFieldsProps> = ({
 
     if (entries.length === 0) {
       toast({ title: "Validation Error", description: "Please add at least one complete mosque entry", variant: "destructive" });
+      return;
+    }
+
+    // Check for duplicates against existing records
+    const duplicates = dates.flatMap(date =>
+      entries.filter(entry =>
+        existingRecords.some(rec =>
+          rec.masjid_name === entry.masjid_name.toLowerCase() &&
+          rec.req_date?.startsWith(format(date, "yyyy-MM-dd"))
+        )
+      ).map(entry => `${entry.masjid_name} on ${format(date, "dd MMM yyyy")}`)
+    );
+
+    if (duplicates.length > 0) {
+      toast({
+        title: "Duplicate Found",
+        description: `Mosque Name with date already exist: ${duplicates[0]}`,
+        variant: "destructive",
+      });
       return;
     }
 

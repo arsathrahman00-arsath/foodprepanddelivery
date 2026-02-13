@@ -12,7 +12,7 @@ import { alphabetOnly, numericOnly, toProperCase } from "@/lib/utils";
 
 const schema = z.object({
   recipe_type: z.string().min(1, "Required").max(50),
-  recipe_perkg: z.string().min(1, "Required"),
+  recipe_perkg: z.string(),
   recipe_totpkt: z.string().min(1, "Required"),
 });
 
@@ -31,7 +31,7 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { recipe_type: "", recipe_perkg: "", recipe_totpkt: "" },
+    defaultValues: { recipe_type: "", recipe_perkg: "1", recipe_totpkt: "" },
   });
 
   useEffect(() => {
@@ -97,20 +97,15 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="recipe_perkg">Recipe Kgs Per Day *</Label>
+          <Label htmlFor="recipe_perkg">Recipe Kgs Per Day</Label>
           <Input
             id="recipe_perkg"
             type="number"
-            step="0.01"
-            min="0"
-            placeholder="Enter per kg value"
-            onKeyDown={numericOnly}
-            {...form.register("recipe_perkg")}
-            className="h-10"
+            value="1"
+            readOnly
+            disabled
+            className="h-10 bg-muted cursor-not-allowed"
           />
-          {form.formState.errors.recipe_perkg && (
-            <p className="text-xs text-destructive">{form.formState.errors.recipe_perkg.message}</p>
-          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="recipe_totpkt">Pockets Per Day *</Label>

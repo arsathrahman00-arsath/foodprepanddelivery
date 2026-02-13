@@ -16,7 +16,7 @@ const columns = [
 const RecipePage: React.FC = () => {
   return (
     <MasterDataTable
-      title="Recipe"
+      title="Recipe for a Kg"
       description="Manage recipes"
       icon={<UtensilsCrossed className="w-5 h-5 text-orange-600" />}
       columns={columns}

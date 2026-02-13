@@ -46,8 +46,8 @@ const RecipeTypeEditForm: React.FC<Props> = ({ onSuccess, editData }) => {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Recipe Kgs Per Day *</Label>
-          <Input type="number" step="0.01" min="0" value={recipePerkg} onChange={(e) => setRecipePerkg(e.target.value)} onKeyDown={numericOnly} className="h-10" />
+          <Label>Recipe Kgs Per Day</Label>
+          <Input type="number" value="1" readOnly disabled className="h-10 bg-muted cursor-not-allowed" />
         </div>
         <div className="space-y-2">
           <Label>Pockets Per Day *</Label>
