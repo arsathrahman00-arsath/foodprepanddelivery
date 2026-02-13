@@ -7,8 +7,8 @@ import { recipeTypeApi } from "@/lib/api";
 
 const columns = [
   { key: "recipe_type", label: "Recipe Type" },
-  { key: "recipe_perkg", label: "Recipe per kg" },
-  { key: "recipe_totpkt", label: "Recipe tot pkt" },
+  { key: "recipe_perkg", label: "Recipe Kgs Per Day" },
+  { key: "recipe_totpkt", label: "Pockets Per Day" },
   { key: "created_by", label: "Created By" },
 ];
 

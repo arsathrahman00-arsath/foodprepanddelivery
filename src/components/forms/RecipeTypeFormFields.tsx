@@ -97,7 +97,7 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="recipe_perkg">Recipe per kg *</Label>
+          <Label htmlFor="recipe_perkg">Recipe Kgs Per Day *</Label>
           <Input
             id="recipe_perkg"
             type="number"
@@ -113,7 +113,7 @@ const RecipeTypeFormFields: React.FC<Props> = ({ onSuccess }) => {
           )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="recipe_totpkt">Recipe tot pkt *</Label>
+          <Label htmlFor="recipe_totpkt">Pockets Per Day *</Label>
           <Input
             id="recipe_totpkt"
             type="number"
