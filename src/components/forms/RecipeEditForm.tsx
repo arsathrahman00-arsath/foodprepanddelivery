@@ -25,6 +25,7 @@ const RecipeEditForm: React.FC<Props> = ({ onSuccess, editData }) => {
     try {
       const response = await recipeApi.update({
         recipe_code: String(editData?.recipe_code || ""),
+        item_code: String(editData?.item_code || ""),
         req_qty: String(reqQty),
       });
       if (response.status === "success" || response.status === "ok") { onSuccess?.(); }
