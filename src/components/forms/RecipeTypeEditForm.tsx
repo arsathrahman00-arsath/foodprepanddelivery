@@ -46,11 +46,11 @@ const RecipeTypeEditForm: React.FC<Props> = ({ onSuccess, editData }) => {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Recipe per kg *</Label>
+          <Label>Recipe Kgs Per Day *</Label>
           <Input type="number" step="0.01" min="0" value={recipePerkg} onChange={(e) => setRecipePerkg(e.target.value)} onKeyDown={numericOnly} className="h-10" />
         </div>
         <div className="space-y-2">
-          <Label>Recipe tot pkt *</Label>
+          <Label>Pockets Per Day *</Label>
           <Input type="number" step="1" min="0" value={recipeTotpkt} onChange={(e) => setRecipeTotpkt(e.target.value)} onKeyDown={numericOnly} className="h-10" />
         </div>
       </div>

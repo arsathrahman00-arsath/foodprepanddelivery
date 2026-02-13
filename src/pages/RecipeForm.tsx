@@ -9,7 +9,7 @@ const columns = [
   { key: "recipe_type", label: "Recipe Type" },
   { key: "item_name", label: "Item Name" },
   { key: "unit_short", label: "Unit" },
-  { key: "req_qty", label: "Required Qty" },
+  { key: "req_qty", label: "Recipe (Kg)" },
   { key: "created_by", label: "Created By" },
 ];
 
