@@ -15,10 +15,15 @@ interface RecipeItem {
   req_qty: number;
 }
 
+function formatDateDDMMYYYY(dateStr: string): string {
+  const parts = dateStr.split("-");
+  if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  return dateStr;
+}
+
 export async function generateDayReqPdf(row: RequirementRow): Promise<void> {
   const recipeType = row.recipe_type.trim();
 
-  // Fetch items and totpkt in parallel
   const [itemsRes, totpktRes] = await Promise.all([
     dayRequirementsApi.getRecipeItems(recipeType),
     dayRequirementsApi.getRecipeTotpkt(recipeType),
@@ -43,8 +48,8 @@ export async function generateDayReqPdf(row: RequirementRow): Promise<void> {
     grouped[cat].push(item);
   });
 
-  // Format date for display
-  const dateStr = row.day_req_date?.split("T")[0] || row.day_req_date;
+  const rawDate = row.day_req_date?.split("T")[0] || row.day_req_date;
+  const dateStr = formatDateDDMMYYYY(rawDate);
 
   // Build PDF
   const doc = new jsPDF();
@@ -55,15 +60,17 @@ export async function generateDayReqPdf(row: RequirementRow): Promise<void> {
   doc.setFont("helvetica", "bold");
   doc.text("Day Requirements Report", pageWidth / 2, 18, { align: "center" });
 
-  // Header info
+  // Date - top right, below heading
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
+  doc.text(`Date: ${dateStr}`, pageWidth - 14, 28, { align: "right" });
+
+  // Header info
   const headerY = 28;
-  doc.text(`Date: ${dateStr}`, 14, headerY);
-  doc.text(`Recipe Type: ${recipeType}`, 14, headerY + 6);
-  doc.text(`Total Req (pck): ${totalReq}`, 14, headerY + 12);
+  doc.text(`Recipe Type: ${recipeType}`, 14, headerY);
+  doc.text(`Total Req (pck): ${totalReq}`, 14, headerY + 6);
   doc.text(`Total Req (kg): ${kgValue.toFixed(2)}`, pageWidth / 2, headerY + 6);
-  doc.text(`Multiplier (Round): ${roundValue}`, pageWidth / 2, headerY + 12);
+  doc.text(`Multiplier (Round): ${roundValue}`, 14, headerY + 12);
 
   let startY = headerY + 22;
 
@@ -94,9 +101,8 @@ export async function generateDayReqPdf(row: RequirementRow): Promise<void> {
       didDrawPage: () => {},
     });
 
-    // Get the final Y after the table
     startY = (doc as any).lastAutoTable.finalY + 10;
   });
 
-  doc.save(`Day_Requirements_${dateStr}_${recipeType.replace(/\s+/g, "_")}.pdf`);
+  doc.save(`Day_Requirements_${rawDate}_${recipeType.replace(/\s+/g, "_")}.pdf`);
 }
