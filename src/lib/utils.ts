@@ -33,3 +33,12 @@ export function alphabetOnly(e: React.KeyboardEvent<HTMLInputElement>) {
     e.preventDefault();
   }
 }
+
+/** Format date string (ISO/yyyy-MM-dd) to DD-MM-YYYY for table display */
+export function formatDateForTable(dateStr: string): string {
+  if (!dateStr) return "-";
+  const cleaned = dateStr.split("T")[0];
+  const parts = cleaned.split("-");
+  if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  return dateStr;
+}

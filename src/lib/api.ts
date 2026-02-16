@@ -121,7 +121,10 @@ export const itemApi = {
   create: (data: {
     item_name: string;
     cat_name: string;
+    brand: string;
     unit_short: string;
+    item_rate: string;
+    remark: string;
     created_by: string;
   }) => postFormData("/masteritem/", data),
   

@@ -8,7 +8,10 @@ import { itemApi } from "@/lib/api";
 const columns = [
   { key: "item_name", label: "Item Name" },
   { key: "cat_name", label: "Category Name" },
+  { key: "brand", label: "Brand" },
   { key: "unit_short", label: "Unit Short" },
+  { key: "item_rate", label: "Rate" },
+  { key: "remark", label: "Remarks" },
   { key: "created_by", label: "Created By" },
 ];
 
