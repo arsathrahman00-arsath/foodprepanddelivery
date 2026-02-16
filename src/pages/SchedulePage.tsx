@@ -57,7 +57,9 @@ const SchedulePage: React.FC = () => {
         editDeleteConfig={{
           idKey: "schd_date",
           editFields: ["schd_date", "recipe_type", "recipe_code"],
+          deleteFields: ["schd_date", "recipe_code"],
           updateApi: deliveryScheduleApi.update,
+          deleteApi: deliveryScheduleApi.delete,
         }}
       />
     </div>
