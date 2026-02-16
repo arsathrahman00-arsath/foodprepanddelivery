@@ -299,6 +299,8 @@ export const allocationApi = {
     recipe_type: string;
     recipe_code: string;
   }) => postFormData("/allocation_post/", data),
+  updateAvailableQty: (data: { alloc_date: string; avbl_qty: string }) =>
+    postFormData("/updateavbl_qty", data),
 };
 
 // Delivery API endpoints
