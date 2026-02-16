@@ -32,12 +32,8 @@ export function generateSchedulePdf(data: ScheduleRow[]): void {
 
   autoTable(doc, {
     startY: 36,
-    head: [["#", "Schedule Date", "Recipe Type"]],
-    body: sorted.map((row, i) => [
-      String(i + 1),
-      formatDateDDMMYYYY(row.schd_date),
-      row.recipe_type,
-    ]),
+    head: [["#", "Date", "Recipe Type"]],
+    body: sorted.map((row, i) => [String(i + 1), formatDateDDMMYYYY(row.schd_date), row.recipe_type]),
     theme: "grid",
     headStyles: { fillColor: [59, 130, 246], fontSize: 9 },
     bodyStyles: { fontSize: 9 },
