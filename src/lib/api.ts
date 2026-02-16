@@ -216,6 +216,8 @@ export const deliveryScheduleApi = {
   getAll: () => getData("/get_Deliveryplanschedule/"),
 
   update: (data: Record<string, string>) => postFormData("/updateschedule/", data),
+
+  delete: (data: Record<string, string>) => postFormData("/deleteschedule/", data),
 };
 
 // Delivery Plan Requirement endpoints
@@ -231,6 +233,8 @@ export const deliveryRequirementApi = {
   getAll: () => getData("/get_Deliveryplanrequirement/"),
 
   update: (data: Record<string, string>) => postFormData("/updaterequirement/", data),
+
+  delete: (data: Record<string, string>) => postFormData("/deleterequirement/", data),
 };
 
 // Masjid list endpoint (for Requirement form)

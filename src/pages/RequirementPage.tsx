@@ -26,7 +26,9 @@ const RequirementPage: React.FC = () => {
       editDeleteConfig={{
         idKey: "req_date",
         editFields: ["req_date", "masjid_name", "masjid_code", "req_qty"],
+        deleteFields: ["req_date", "masjid_code"],
         updateApi: deliveryRequirementApi.update,
+        deleteApi: deliveryRequirementApi.delete,
       }}
     />
   );

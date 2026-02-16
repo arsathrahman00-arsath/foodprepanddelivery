@@ -47,6 +47,8 @@ export interface EditDeleteConfig {
   idKey: string;
   /** Fields sent in the edit payload (excluding the id which is auto-included) */
   editFields: string[];
+  /** Fields sent in the delete payload. If not provided, defaults to [idKey] */
+  deleteFields?: string[];
   /** API function for update */
   updateApi?: (data: Record<string, string>) => Promise<any>;
   /** API function for delete */
@@ -182,9 +184,11 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
     if (!deleteRow || !editDeleteConfig?.deleteApi) return;
     setIsDeleting(true);
     try {
-      const payload: Record<string, string> = {
-        [editDeleteConfig.idKey]: String(deleteRow[editDeleteConfig.idKey] || ""),
-      };
+      const fields = editDeleteConfig.deleteFields || [editDeleteConfig.idKey];
+      const payload: Record<string, string> = {};
+      fields.forEach((field) => {
+        payload[field] = String(deleteRow[field] || "");
+      });
       const response = await editDeleteConfig.deleteApi(payload);
       if (response.status === "success" || response.status === "ok") {
         toast({ title: "Deleted", description: "Record deleted successfully" });
