@@ -236,6 +236,13 @@ const FoodAllocationPage: React.FC = () => {
         });
       }
 
+      // Update available qty after successful save
+      const formattedDateForUpdate = format(selectedDate, "yyyy-MM-dd");
+      await allocationApi.updateAvailableQty({
+        alloc_date: formattedDateForUpdate,
+        avbl_qty: String(remainingQty),
+      });
+
       toast({ title: "Success", description: `${validRows.length} allocation(s) saved successfully` });
       formInteracted.current = false;
       setDialogOpen(false);
