@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, PackageCheck, Loader2, Plus, Save } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,8 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { cn, numericOnly, toProperCase } from "@/lib/utils";
+import { cn, numericOnly, toProperCase, formatDateForTable } from "@/lib/utils";
 import { packingApi } from "@/lib/api";
 
 interface PackingRecord {
@@ -31,25 +41,26 @@ const PackingPage: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Table state
   const [records, setRecords] = useState<PackingRecord[]>([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
 
-  // Form state
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const formInteracted = useRef(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [recipeQtyList, setRecipeQtyList] = useState<RecipeQtyData[]>([]);
   const [formRows, setFormRows] = useState<Array<{ recipe_type: string; req_qty: string; avbl_qty: string; pack_qty: string }>>([]);
   const [isLoadingDateData, setIsLoadingDateData] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch existing records
   const fetchRecords = async () => {
     setIsLoadingRecords(true);
     try {
       const response = await packingApi.getAll();
       if (response.data) {
-        setRecords(Array.isArray(response.data) ? response.data : []);
+        const raw = Array.isArray(response.data) ? response.data : [];
+        raw.sort((a: PackingRecord, b: PackingRecord) => new Date(a.pack_date).getTime() - new Date(b.pack_date).getTime());
+        setRecords(raw);
       }
     } catch (error) {
       console.error("Failed to fetch packing records:", error);
@@ -58,9 +69,7 @@ const PackingPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchRecords();
-  }, []);
+  useEffect(() => { fetchRecords(); }, []);
 
   // Fetch recipe data when date changes
   useEffect(() => {
@@ -80,8 +89,6 @@ const PackingPage: React.FC = () => {
           const data = response.data;
           const recipes = data.recipes || [];
           const reqQtyArray = data.req_qty || [];
-
-          // Sum all req_qty values
           const totalReqQty = reqQtyArray.reduce((sum: number, val: number) => sum + (Number(val) || 0), 0);
 
           const list: RecipeQtyData[] = recipes.map((r: any) => ({
@@ -114,7 +121,15 @@ const PackingPage: React.FC = () => {
   }, [selectedDate, toast]);
 
   const updateFormRow = (index: number, field: "avbl_qty" | "pack_qty", value: string) => {
+    formInteracted.current = true;
     setFormRows((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  };
+
+  const resetForm = () => {
+    setSelectedDate(undefined);
+    setFormRows([]);
+    setRecipeQtyList([]);
+    formInteracted.current = false;
   };
 
   const handleSubmit = async () => {
@@ -148,9 +163,9 @@ const PackingPage: React.FC = () => {
       );
 
       toast({ title: "Success", description: "Packing data saved successfully" });
+      formInteracted.current = false;
       setDialogOpen(false);
-      setSelectedDate(undefined);
-      setFormRows([]);
+      resetForm();
       fetchRecords();
     } catch (error) {
       console.error("Failed to save packing:", error);
@@ -175,18 +190,29 @@ const PackingPage: React.FC = () => {
               </div>
             </div>
 
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              if (!open && formInteracted.current) {
+                setShowCloseWarning(true);
+                return;
+              }
+              if (open) formInteracted.current = false;
+              setDialogOpen(open);
+              if (!open) resetForm();
+            }}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
                   <Plus className="w-4 h-4" /> Add Packing
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-2xl">
+              <DialogContent
+                className="sm:max-w-2xl"
+                onInteractOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+              >
                 <DialogHeader>
                   <DialogTitle>Add Packing</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                  {/* Date Picker */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Packing Date</label>
                     <Popover>
@@ -199,20 +225,18 @@ const PackingPage: React.FC = () => {
                           {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className="p-3 pointer-events-auto" />
+                      <PopoverContent className="w-auto p-0 z-[200]" align="start">
+                        <Calendar mode="single" selected={selectedDate} onSelect={(d) => { setSelectedDate(d); formInteracted.current = true; }} initialFocus className="p-3 pointer-events-auto" />
                       </PopoverContent>
                     </Popover>
                   </div>
 
-                  {/* Loading */}
                   {isLoadingDateData && (
                     <div className="flex items-center justify-center py-6">
                       <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
                   )}
 
-                  {/* Form rows */}
                   {!isLoadingDateData && formRows.length > 0 && (
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
@@ -260,7 +284,6 @@ const PackingPage: React.FC = () => {
                     <p className="text-sm text-muted-foreground text-center py-4">No recipe data found for the selected date.</p>
                   )}
 
-                  {/* Submit */}
                   <Button onClick={handleSubmit} disabled={isSubmitting || formRows.length === 0} className="w-full gap-2">
                     {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     Save Packing
@@ -271,7 +294,6 @@ const PackingPage: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Existing records table */}
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
@@ -300,7 +322,7 @@ const PackingPage: React.FC = () => {
                 ) : (
                   records.map((record, index) => (
                     <TableRow key={index}>
-                      <TableCell>{record.pack_date}</TableCell>
+                      <TableCell>{formatDateForTable(record.pack_date)}</TableCell>
                       <TableCell className="font-medium">{toProperCase(record.recipe_type)}</TableCell>
                       <TableCell className="text-right">{record.req_qty}</TableCell>
                       <TableCell className="text-right">{record.avbl_qty}</TableCell>
@@ -314,6 +336,21 @@ const PackingPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Do you want to close the form without saving?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { formInteracted.current = false; setShowCloseWarning(false); setDialogOpen(false); resetForm(); }}>Yes</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

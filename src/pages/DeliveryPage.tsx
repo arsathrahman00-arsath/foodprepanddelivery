@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2, Plus, Save, Truck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,8 +10,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, formatDateForTable } from "@/lib/utils";
 import { deliveryApi } from "@/lib/api";
 
 interface DeliveryRecord {
@@ -35,6 +45,8 @@ const DeliveryPage: React.FC = () => {
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const formInteracted = useRef(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [isLoadingDateData, setIsLoadingDateData] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,7 +63,9 @@ const DeliveryPage: React.FC = () => {
     try {
       const response = await deliveryApi.getAll();
       if (response.data) {
-        setRecords(Array.isArray(response.data) ? response.data : []);
+        const raw = Array.isArray(response.data) ? response.data : [];
+        raw.sort((a: DeliveryRecord, b: DeliveryRecord) => new Date(a.delivery_date).getTime() - new Date(b.delivery_date).getTime());
+        setRecords(raw);
       }
     } catch (error) {
       console.error("Failed to fetch delivery records:", error);
@@ -62,7 +76,7 @@ const DeliveryPage: React.FC = () => {
 
   useEffect(() => { fetchRecords(); }, []);
 
-  // Fetch schedule data when date changes
+  // Fetch schedule data when date changes — also filter out already-delivered mosques
   useEffect(() => {
     if (!selectedDate) {
       setMasjidList([]);
@@ -74,16 +88,29 @@ const DeliveryPage: React.FC = () => {
       setIsLoadingDateData(true);
       try {
         const formattedDate = format(selectedDate, "yyyy-MM-dd");
-        const response = await deliveryApi.getScheduleRequirement(formattedDate);
+        const [scheduleRes, allDeliveryRes] = await Promise.all([
+          deliveryApi.getScheduleRequirement(formattedDate),
+          deliveryApi.getAll(),
+        ]);
 
-        if (response.status === "success" && response.data) {
-          const data = response.data;
+        // Get already-delivered mosques for this date
+        const existingDeliveries: DeliveryRecord[] = Array.isArray(allDeliveryRes.data) ? allDeliveryRes.data : [];
+        const deliveredMosquesForDate = new Set(
+          existingDeliveries
+            .filter(d => d.delivery_date?.split("T")[0] === formattedDate)
+            .map(d => d.location)
+        );
+
+        if (scheduleRes.status === "success" && scheduleRes.data) {
+          const data = scheduleRes.data;
           const requirements = data.requirements || [];
-          const list: MasjidInfo[] = requirements.map((r: any) => ({
-            masjid_name: r.masjid_name,
-            req_qty: Number(r.req_qty) || 0,
-            alloc_qty: Number(r.alloc_qty) || 0,
-          }));
+          const list: MasjidInfo[] = requirements
+            .map((r: any) => ({
+              masjid_name: r.masjid_name,
+              req_qty: Number(r.req_qty) || 0,
+              alloc_qty: Number(r.alloc_qty) || 0,
+            }))
+            .filter((m: MasjidInfo) => !deliveredMosquesForDate.has(m.masjid_name));
           setMasjidList(list);
         } else {
           setMasjidList([]);
@@ -105,9 +132,9 @@ const DeliveryPage: React.FC = () => {
     setDeliveryTime("");
     setDeliveryBy("");
     setDeliveryQty("");
+    formInteracted.current = false;
   };
 
-  // Auto-populate delivery time and allocated qty when location is selected
   useEffect(() => {
     if (selectedMasjid) {
       setDeliveryTime(format(new Date(), "HH:mm:ss"));
@@ -137,6 +164,7 @@ const DeliveryPage: React.FC = () => {
       });
 
       toast({ title: "Success", description: "Delivery recorded successfully" });
+      formInteracted.current = false;
       resetFormFields();
       fetchRecords();
     } catch (error) {
@@ -161,16 +189,27 @@ const DeliveryPage: React.FC = () => {
                 <CardDescription>Track food delivery to locations</CardDescription>
               </div>
             </div>
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setSelectedDate(undefined); resetFormFields(); } }}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              if (!open && formInteracted.current) {
+                setShowCloseWarning(true);
+                return;
+              }
+              if (open) formInteracted.current = false;
+              setDialogOpen(open);
+              if (!open) { setSelectedDate(undefined); resetFormFields(); }
+            }}>
               <DialogTrigger asChild>
                 <Button className="gap-2"><Plus className="w-4 h-4" /> Add Delivery</Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-lg">
+              <DialogContent
+                className="sm:max-w-lg"
+                onInteractOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+              >
                 <DialogHeader>
                   <DialogTitle>Add Delivery</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                  {/* Date Picker */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Delivery Date</label>
                     <Popover>
@@ -181,7 +220,7 @@ const DeliveryPage: React.FC = () => {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 z-[200]" align="start">
-                        <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className="p-3 pointer-events-auto" />
+                        <Calendar mode="single" selected={selectedDate} onSelect={(d) => { setSelectedDate(d); formInteracted.current = true; }} initialFocus className="p-3 pointer-events-auto" />
                       </PopoverContent>
                     </Popover>
                   </div>
@@ -194,10 +233,9 @@ const DeliveryPage: React.FC = () => {
 
                   {!isLoadingDateData && selectedDate && masjidList.length > 0 && (
                     <>
-                      {/* Location Selection */}
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Location (Masjid)</label>
-                        <Select value={selectedMasjid} onValueChange={setSelectedMasjid}>
+                        <Select value={selectedMasjid} onValueChange={(v) => { setSelectedMasjid(v); formInteracted.current = true; }}>
                           <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
                           <SelectContent className="z-[200] bg-popover">
                             {masjidList.map((m, i) => (
@@ -207,28 +245,24 @@ const DeliveryPage: React.FC = () => {
                         </Select>
                       </div>
 
-                      {/* Allocated Qty (auto-populated) */}
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Allocated Quantity</label>
                         <Input value={allocatedQty || "—"} readOnly className="bg-muted font-semibold" />
                       </div>
 
-                      {/* Delivery Time (auto-populated) */}
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Delivery Time</label>
                         <Input value={deliveryTime} readOnly className="bg-muted" placeholder="Auto-populated on location select" />
                       </div>
 
-                      {/* Delivery By */}
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Delivery By</label>
-                        <Input placeholder="Enter personnel name" value={deliveryBy} onChange={(e) => setDeliveryBy(e.target.value)} />
+                        <Input placeholder="Enter personnel name" value={deliveryBy} onChange={(e) => { setDeliveryBy(e.target.value); formInteracted.current = true; }} />
                       </div>
 
-                      {/* Delivery Qty */}
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Delivery Qty</label>
-                        <Input type="number" placeholder="Enter quantity" value={deliveryQty} onChange={(e) => setDeliveryQty(e.target.value)} />
+                        <Input type="number" placeholder="Enter quantity" value={deliveryQty} onChange={(e) => { setDeliveryQty(e.target.value); formInteracted.current = true; }} />
                       </div>
 
                       <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full gap-2">
@@ -239,7 +273,7 @@ const DeliveryPage: React.FC = () => {
                   )}
 
                   {!isLoadingDateData && selectedDate && masjidList.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No schedule data found for the selected date.</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No pending deliveries for the selected date.</p>
                   )}
                 </div>
               </DialogContent>
@@ -265,7 +299,7 @@ const DeliveryPage: React.FC = () => {
                 ) : (
                   records.map((record, index) => (
                     <TableRow key={index}>
-                      <TableCell>{record.delivery_date}</TableCell>
+                      <TableCell>{formatDateForTable(record.delivery_date)}</TableCell>
                       <TableCell className="font-medium">{record.location}</TableCell>
                       <TableCell>{record.delivery_by}</TableCell>
                       <TableCell className="text-right">{record.delivery_qty}</TableCell>
@@ -277,6 +311,21 @@ const DeliveryPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Do you want to close the form without saving?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { formInteracted.current = false; setShowCloseWarning(false); setDialogOpen(false); setSelectedDate(undefined); resetFormFields(); }}>Yes</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

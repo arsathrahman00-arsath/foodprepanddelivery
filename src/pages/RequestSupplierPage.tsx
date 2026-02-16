@@ -293,7 +293,7 @@ const RequestSupplierPage: React.FC = () => {
                   {items.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{index + 1}</TableCell>
-                      <TableCell>{selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}</TableCell>
+                      <TableCell>{selectedDate ? format(selectedDate, "dd-MM-yyyy") : ""}</TableCell>
                       <TableCell>{toProperCase(item.item_name)}</TableCell>
                       <TableCell>{toProperCase(item.cat_name)}</TableCell>
                       <TableCell>{item.unit_short}</TableCell>

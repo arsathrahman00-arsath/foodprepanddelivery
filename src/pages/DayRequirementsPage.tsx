@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { cn, toProperCase } from "@/lib/utils";
+import { cn, toProperCase, formatDateForTable } from "@/lib/utils";
 import { dayRequirementsApi } from "@/lib/api";
 import { generateDayReqPdf } from "@/lib/generateDayReqPdf";
 
@@ -111,7 +111,10 @@ const DayRequirementsPage: React.FC = () => {
     try {
       const response = await requirementListApi.getAll();
       if (response.status === "success" && response.data) {
-        setExistingRequirements(Array.isArray(response.data) ? response.data : []);
+        setExistingRequirements(
+          (Array.isArray(response.data) ? response.data : [])
+            .sort((a: ExistingRequirement, b: ExistingRequirement) => new Date(a.day_req_date).getTime() - new Date(b.day_req_date).getTime())
+        );
       }
     } catch (error) {
       console.error("Failed to fetch existing requirements:", error);
@@ -577,7 +580,7 @@ const DayRequirementsPage: React.FC = () => {
                 ) : (
                   existingRequirements.map((req, index) => (
                     <TableRow key={index}>
-                      <TableCell>{req.day_req_date}</TableCell>
+                      <TableCell>{formatDateForTable(req.day_req_date)}</TableCell>
                       <TableCell className="font-medium">{toProperCase(req.recipe_type)}</TableCell>
                       <TableCell className="text-right">{req.day_tot_req}</TableCell>
                       <TableCell>{toProperCase(req.created_by)}</TableCell>
