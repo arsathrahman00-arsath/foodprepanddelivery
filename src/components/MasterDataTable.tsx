@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Plus, RefreshCw, AlertCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { toProperCase } from "@/lib/utils";
+import { toProperCase, formatDateForTable } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -100,7 +100,16 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
     try {
       const response = await fetchData();
       if (response.status === "success" || response.status === "ok") {
-        setData(response.data || []);
+        const rawData = response.data || [];
+        const dateKeys = columns.filter(c => c.key.includes("date") || c.key === "schd_date" || c.key === "req_date").map(c => c.key);
+        if (dateKeys.length > 0) {
+          rawData.sort((a: any, b: any) => {
+            const dateA = new Date(a[dateKeys[0]] || "").getTime();
+            const dateB = new Date(b[dateKeys[0]] || "").getTime();
+            return dateA - dateB;
+          });
+        }
+        setData(rawData);
       } else {
         setError(response.message || "Failed to load data");
       }
@@ -266,7 +275,13 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
                     <TableRow key={index}>
                       <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
                       {columns.map((col) => (
-                        <TableCell key={col.key}>{row[col.key] ? toProperCase(String(row[col.key])) : "-"}</TableCell>
+                        <TableCell key={col.key}>
+                          {row[col.key]
+                            ? (col.key.includes("date") || col.key.includes("schd_date") || col.key.includes("req_date"))
+                              ? formatDateForTable(String(row[col.key]))
+                              : toProperCase(String(row[col.key]))
+                            : "-"}
+                        </TableCell>
                       ))}
                       {hasActions && (
                         <TableCell>

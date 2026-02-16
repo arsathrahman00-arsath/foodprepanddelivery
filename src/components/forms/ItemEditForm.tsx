@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { alphabetOnly, toProperCase } from "@/lib/utils";
+import { alphabetOnly, toProperCase, numericOnly } from "@/lib/utils";
 import { itemApi, categoryUnitApi } from "@/lib/api";
 
 interface Props {
@@ -18,7 +18,10 @@ const ItemEditForm: React.FC<Props> = ({ onSuccess, editData }) => {
   const [error, setError] = useState<string | null>(null);
   const [itemName, setItemName] = useState(editData?.item_name || "");
   const [catName, setCatName] = useState(editData?.cat_name || "");
+  const [brand, setBrand] = useState(editData?.brand || "");
   const [unitShort, setUnitShort] = useState(editData?.unit_short || "");
+  const [itemRate, setItemRate] = useState(editData?.item_rate?.toString() || "");
+  const [remark, setRemark] = useState(editData?.remark || "");
   const [categories, setCategories] = useState<{ cat_name: string }[]>([]);
   const [units, setUnits] = useState<{ unit_short: string }[]>([]);
   const [loadingDropdowns, setLoadingDropdowns] = useState(true);
@@ -34,7 +37,7 @@ const ItemEditForm: React.FC<Props> = ({ onSuccess, editData }) => {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!itemName.trim() || !catName || !unitShort) { setError("All fields are required"); return; }
+    if (!itemName.trim() || !catName || !unitShort) { setError("Item Name, Category, and Unit are required"); return; }
     setIsLoading(true);
     setError(null);
     try {
@@ -42,7 +45,10 @@ const ItemEditForm: React.FC<Props> = ({ onSuccess, editData }) => {
         item_code: String(editData?.item_code || ""),
         item_name: toProperCase(itemName.trim()),
         cat_name: catName,
+        brand: brand.trim(),
         unit_short: unitShort,
+        item_rate: itemRate.trim(),
+        remark: remark.trim(),
       });
       if (response.status === "success" || response.status === "ok") { onSuccess?.(); }
       else { setError(response.message || "Failed to update"); }
@@ -59,23 +65,39 @@ const ItemEditForm: React.FC<Props> = ({ onSuccess, editData }) => {
         <Label>Item Name *</Label>
         <Input value={itemName} onChange={(e) => setItemName(e.target.value)} onKeyDown={alphabetOnly} className="h-10" />
       </div>
-      <div className="space-y-2">
-        <Label>Category *</Label>
-        <Select value={catName} onValueChange={setCatName}>
-          <SelectTrigger className="h-10"><SelectValue placeholder="Select category" /></SelectTrigger>
-          <SelectContent className="bg-background border z-50">
-            {categories.map((c) => <SelectItem key={c.cat_name} value={c.cat_name}>{c.cat_name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Category *</Label>
+          <Select value={catName} onValueChange={setCatName}>
+            <SelectTrigger className="h-10"><SelectValue placeholder="Select category" /></SelectTrigger>
+            <SelectContent className="bg-background border z-50">
+              {categories.map((c) => <SelectItem key={c.cat_name} value={c.cat_name}>{c.cat_name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Unit *</Label>
+          <Select value={unitShort} onValueChange={setUnitShort}>
+            <SelectTrigger className="h-10"><SelectValue placeholder="Select unit" /></SelectTrigger>
+            <SelectContent className="bg-background border z-50">
+              {units.map((u) => <SelectItem key={u.unit_short} value={u.unit_short}>{u.unit_short}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <div className="space-y-2">
-        <Label>Unit *</Label>
-        <Select value={unitShort} onValueChange={setUnitShort}>
-          <SelectTrigger className="h-10"><SelectValue placeholder="Select unit" /></SelectTrigger>
-          <SelectContent className="bg-background border z-50">
-            {units.map((u) => <SelectItem key={u.unit_short} value={u.unit_short}>{u.unit_short}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <Label>Brand</Label>
+        <Input value={brand} onChange={(e) => setBrand(e.target.value)} className="h-10" placeholder="Enter brand" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Rate</Label>
+          <Input value={itemRate} onChange={(e) => setItemRate(e.target.value)} onKeyDown={numericOnly} className="h-10" placeholder="Enter rate" />
+        </div>
+        <div className="space-y-2">
+          <Label>Remarks</Label>
+          <Input value={remark} onChange={(e) => setRemark(e.target.value)} className="h-10" placeholder="Enter remarks" />
+        </div>
       </div>
       <Button type="submit" className="bg-gradient-warm hover:opacity-90 gap-2 w-full" disabled={isLoading}>
         <Save className="w-4 h-4" />{isLoading ? "Saving..." : "Save Changes"}
