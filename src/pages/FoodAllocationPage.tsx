@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2, Plus, Minus, Save, Utensils } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,8 +10,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { cn, numericOnly, toProperCase } from "@/lib/utils";
+import { cn, numericOnly, toProperCase, formatDateForTable } from "@/lib/utils";
 import { allocationApi } from "@/lib/api";
 
 interface AllocationRecord {
@@ -50,8 +60,9 @@ const FoodAllocationPage: React.FC = () => {
   const [records, setRecords] = useState<AllocationRecord[]>([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const formInteracted = useRef(false);
 
-  // Dialog state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [isLoadingDateData, setIsLoadingDateData] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,7 +76,9 @@ const FoodAllocationPage: React.FC = () => {
     try {
       const response = await allocationApi.getAll();
       if (response.data) {
-        setRecords(Array.isArray(response.data) ? response.data : []);
+        const raw = Array.isArray(response.data) ? response.data : [];
+        raw.sort((a: AllocationRecord, b: AllocationRecord) => new Date(a.alloc_date).getTime() - new Date(b.alloc_date).getTime());
+        setRecords(raw);
       }
     } catch (error) {
       console.error("Failed to fetch allocation records:", error);
@@ -94,9 +107,9 @@ const FoodAllocationPage: React.FC = () => {
     setMasjidRequirements([]);
     setAvailableQty(0);
     setRows([]);
+    formInteracted.current = false;
   };
 
-  // Fetch data when date changes
   useEffect(() => {
     if (!selectedDate) {
       setRecipes([]);
@@ -161,16 +174,22 @@ const FoodAllocationPage: React.FC = () => {
   const totalAllocated = rows.reduce((sum, r) => sum + (Number(r.alloc_qty) || 0), 0);
   const remainingQty = availableQty - totalAllocated;
 
+  // Validation: check if any row has alloc_qty > available qty
+  const hasAllocExceedsAvail = remainingQty < 0;
+
   const addRow = () => {
+    formInteracted.current = true;
     setRows(prev => [...prev, createEmptyRow()]);
   };
 
   const removeRow = (id: string) => {
     if (rows.length <= 1) return;
+    formInteracted.current = true;
     setRows(prev => prev.filter(r => r.id !== id));
   };
 
   const updateRow = (id: string, field: keyof AllocationRow, value: string | number) => {
+    formInteracted.current = true;
     setRows(prev => prev.map(row => {
       if (row.id !== id) return row;
       const updated = { ...row, [field]: value };
@@ -190,6 +209,11 @@ const FoodAllocationPage: React.FC = () => {
     const validRows = rows.filter(r => r.masjid_name && r.alloc_qty);
     if (!selectedDate || validRows.length === 0) {
       toast({ title: "Validation Error", description: "Please select a date and fill at least one allocation row", variant: "destructive" });
+      return;
+    }
+
+    if (hasAllocExceedsAvail) {
+      toast({ title: "Validation Error", description: "Allocate Qty is higher than Available Qty", variant: "destructive" });
       return;
     }
 
@@ -213,6 +237,7 @@ const FoodAllocationPage: React.FC = () => {
       }
 
       toast({ title: "Success", description: `${validRows.length} allocation(s) saved successfully` });
+      formInteracted.current = false;
       setDialogOpen(false);
       resetDialog();
       fetchRecords();
@@ -241,16 +266,27 @@ const FoodAllocationPage: React.FC = () => {
                 <CardDescription>Allocate food quantities to locations</CardDescription>
               </div>
             </div>
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetDialog(); }}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              if (!open && formInteracted.current) {
+                setShowCloseWarning(true);
+                return;
+              }
+              if (open) formInteracted.current = false;
+              setDialogOpen(open);
+              if (!open) resetDialog();
+            }}>
               <DialogTrigger asChild>
                 <Button className="gap-2"><Plus className="w-4 h-4" /> Add Allocation</Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent
+                className="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
+                onInteractOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+              >
                 <DialogHeader>
                   <DialogTitle>Add Food Allocation</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                  {/* Date + Available Qty */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Allocation Date</label>
@@ -262,7 +298,7 @@ const FoodAllocationPage: React.FC = () => {
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0 z-[200]" align="start">
-                          <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className="p-3 pointer-events-auto" />
+                          <Calendar mode="single" selected={selectedDate} onSelect={(d) => { setSelectedDate(d); formInteracted.current = true; }} initialFocus className="p-3 pointer-events-auto" />
                         </PopoverContent>
                       </Popover>
                     </div>
@@ -276,6 +312,11 @@ const FoodAllocationPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Alloc > Avail error message */}
+                  {hasAllocExceedsAvail && (
+                    <p className="text-sm text-destructive font-medium">Allocate Qty is higher than Available Qty</p>
+                  )}
 
                   {isLoadingDateData && (
                     <div className="flex items-center justify-center py-6">
@@ -362,7 +403,7 @@ const FoodAllocationPage: React.FC = () => {
                         </Table>
                       </div>
 
-                      <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full gap-2">
+                      <Button onClick={handleSubmit} disabled={isSubmitting || hasAllocExceedsAvail} className="w-full gap-2">
                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         Save Allocation{rows.filter(r => r.masjid_name && r.alloc_qty).length > 1 ? "s" : ""}
                       </Button>
@@ -399,7 +440,7 @@ const FoodAllocationPage: React.FC = () => {
                 ) : (
                   records.map((record, index) => (
                     <TableRow key={index}>
-                      <TableCell>{record.alloc_date}</TableCell>
+                      <TableCell>{formatDateForTable(record.alloc_date)}</TableCell>
                       <TableCell className="font-medium">{toProperCase(record.masjid_name)}</TableCell>
                       <TableCell>{toProperCase(record.recipe_type)}</TableCell>
                       <TableCell className="text-right">{record.req_qty}</TableCell>
@@ -414,6 +455,21 @@ const FoodAllocationPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Do you want to close the form without saving?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { formInteracted.current = false; setShowCloseWarning(false); setDialogOpen(false); resetDialog(); }}>Yes</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
