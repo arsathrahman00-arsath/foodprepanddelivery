@@ -249,6 +249,15 @@ const FoodAllocationPage: React.FC = () => {
     }
   };
 
+  // Get masjids already allocated for the selected date (from saved records)
+  const getAllocatedMasjidsForDate = useCallback(() => {
+    if (!selectedDate) return [];
+    const formattedDate = format(selectedDate, "yyyy-MM-dd");
+    return records
+      .filter(r => r.alloc_date.startsWith(formattedDate))
+      .map(r => r.masjid_name.toLowerCase());
+  }, [selectedDate, records]);
+
   const getUsedMasjids = (currentRowId: string) =>
     rows.filter(r => r.id !== currentRowId && r.masjid_name).map(r => r.masjid_name);
 
@@ -340,8 +349,9 @@ const FoodAllocationPage: React.FC = () => {
                           <TableBody>
                             {rows.map((row, index) => {
                               const usedMasjids = getUsedMasjids(row.id);
+                              const allocatedMasjids = getAllocatedMasjidsForDate();
                               const availableMasjids = masjidRequirements.filter(
-                                m => !usedMasjids.includes(m.masjid_name) || m.masjid_name === row.masjid_name
+                                m => (!usedMasjids.includes(m.masjid_name) && !allocatedMasjids.includes(m.masjid_name.toLowerCase())) || m.masjid_name === row.masjid_name
                               );
                               return (
                                 <TableRow key={row.id}>
