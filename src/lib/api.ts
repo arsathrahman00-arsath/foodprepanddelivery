@@ -358,6 +358,21 @@ export const moduleApi = {
   }) => postFormData("/post_module/", data),
 };
 
+// User management API endpoints
+export const userManagementApi = {
+  getAll: () => getData("/get_users/"),
+  delete: (data: { user_code: string }) => postFormData("/deleteuser/", data),
+  mapModules: (data: {
+    user_code: string;
+    user_name: string;
+    module_id: string;
+    sub_mod_id: string;
+    mod_name: string;
+    sub_mod_name: string;
+    created_by: string;
+  }) => postFormData("/user_mapping/", data),
+};
+
 // Media viewing API endpoints
 export const mediaApi = {
   getMedia: (date: string, type: string) =>
