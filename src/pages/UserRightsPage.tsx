@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { authApi, moduleApi, userManagementApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ interface ModuleRecord {
 // ── Main Component ──
 const UserRightsPage: React.FC = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // view: "list" | "register" | "edit"
   const [view, setView] = useState<"list" | "register" | "edit">("list");
@@ -82,8 +84,6 @@ const UserRightsPage: React.FC = () => {
     resolver: zodResolver(registerSchema),
     defaultValues: { user_name: "", user_pwd: "", confirm_pwd: "" },
   });
-
-  const session = JSON.parse(localStorage.getItem("user_session") || "{}");
 
   // ── Fetch users ──
   const fetchUsers = async () => {
@@ -163,7 +163,7 @@ const UserRightsPage: React.FC = () => {
           sub_mod_id: mod.sub_mod_id || "",
           mod_name: mod.mod_name,
           sub_mod_name: mod.sub_mod_name,
-          created_by: session.user_name || "",
+          created_by: user?.user_name || "",
         });
       }
       toast({ title: "Saved", description: "Permissions updated successfully." });
