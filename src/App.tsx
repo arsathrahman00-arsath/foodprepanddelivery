@@ -29,6 +29,8 @@ import VesselCleaningPage from "@/pages/cleaning/VesselCleaningPage";
 import PrepCleaningPage from "@/pages/cleaning/PrepCleaningPage";
 import PackCleaningPage from "@/pages/cleaning/PackCleaningPage";
 import ViewMediaPage from "@/pages/ViewMediaPage";
+import ModuleMasterPage from "@/pages/ModuleMasterPage";
+import UserRightsPage from "@/pages/UserRightsPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -69,6 +71,8 @@ const App = () => (
                 <Route path="/dashboard/cleaning/prep" element={<PrepCleaningPage />} />
                 <Route path="/dashboard/cleaning/pack" element={<PackCleaningPage />} />
                 <Route path="/dashboard/view-media" element={<ViewMediaPage />} />
+                <Route path="/dashboard/settings/module-master" element={<ModuleMasterPage />} />
+                <Route path="/dashboard/settings/user-rights" element={<UserRightsPage />} />
               </Route>
             </Route>
 

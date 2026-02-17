@@ -29,6 +29,9 @@ import {
   Sandwich,
   Archive,
   Eye,
+  Settings,
+  ShieldCheck,
+  Settings2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -91,6 +94,11 @@ const cleaningMenuItems = [
   { to: "/dashboard/cleaning/vessel", icon: <Container className="w-4 h-4" />, label: "Vessel" },
   { to: "/dashboard/cleaning/prep", icon: <Sandwich className="w-4 h-4" />, label: "Preparation Area" },
   { to: "/dashboard/cleaning/pack", icon: <Archive className="w-4 h-4" />, label: "Packing Area" },
+];
+
+const settingsMenuItems = [
+  { to: "/dashboard/settings/module-master", icon: <Settings2 className="w-4 h-4" />, label: "Module Master" },
+  { to: "/dashboard/settings/user-rights", icon: <ShieldCheck className="w-4 h-4" />, label: "User Rights" },
 ];
 
 interface CollapsibleMenuProps {
@@ -156,6 +164,7 @@ const DashboardSidebar: React.FC = () => {
   const isPreparationActive = preparationMenuItems.some(item => location.pathname === item.to);
   const isDistributionActive = distributionMenuItems.some(item => location.pathname === item.to);
   const isCleaningActive = cleaningMenuItems.some(item => location.pathname === item.to);
+  const isSettingsActive = settingsMenuItems.some(item => location.pathname === item.to);
 
   const handleLogout = () => {
     logout();
@@ -192,6 +201,8 @@ const DashboardSidebar: React.FC = () => {
         <CollapsibleMenu label="Distribution" icon={<Utensils className="w-5 h-5" />} items={distributionMenuItems} isActive={isDistributionActive} defaultOpen={isDistributionActive} />
 
         <NavItem to="/dashboard/view-media" icon={<Eye className="w-5 h-5" />} label="View Media" />
+
+        <CollapsibleMenu label="Settings" icon={<Settings className="w-5 h-5" />} items={settingsMenuItems} isActive={isSettingsActive} defaultOpen={isSettingsActive} />
       </nav>
 
       {/* User Section */}
