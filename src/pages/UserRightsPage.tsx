@@ -9,7 +9,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  ShieldCheck, Pencil, ArrowLeft, Save, Loader2,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  ShieldCheck, Pencil, ArrowLeft, Save, Loader2, Trash2,
 } from "lucide-react";
 
 interface UserRecord {
@@ -39,7 +44,7 @@ const UserRightsPage: React.FC = () => {
   const [selectedIdxs, setSelectedIdxs] = useState<Set<number>>(new Set());
   const [savingPerms, setSavingPerms] = useState(false);
   const [loadingPerms, setLoadingPerms] = useState(false);
-
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
@@ -56,6 +61,19 @@ const UserRightsPage: React.FC = () => {
     fetchUsers();
   }, []);
 
+  const handleDelete = async (targetUser: UserRecord) => {
+    setDeletingUser(targetUser.user_code);
+    try {
+      await userManagementApi.delete({ user_code: targetUser.user_code });
+      toast({ title: "Deleted", description: `User "${targetUser.user_name}" deleted successfully.` });
+      fetchUsers();
+    } catch {
+      toast({ title: "Error", description: "Failed to delete user.", variant: "destructive" });
+    } finally {
+      setDeletingUser(null);
+    }
+  };
+
   const openEdit = async (targetUser: UserRecord) => {
     setEditUser(targetUser);
     setView("edit");
@@ -71,7 +89,6 @@ const UserRightsPage: React.FC = () => {
         : Array.isArray(modulesRes) ? modulesRes : [];
       setModules(list);
 
-      // Pre-select already assigned modules
       const perms: any[] = Array.isArray(permsRes?.data)
         ? permsRes.data
         : Array.isArray(permsRes) ? permsRes : [];
@@ -80,8 +97,10 @@ const UserRightsPage: React.FC = () => {
       list.forEach((mod, idx) => {
         const isAssigned = perms.some(
           (p) =>
-            (p.module_id === mod.module_id || p.mod_name === mod.mod_name) &&
-            (p.sub_mod_id === mod.sub_mod_id || p.sub_mod_name === mod.sub_mod_name)
+            (p.module_id === mod.module_id || p.module_id === mod.mod_name ||
+             String(p.mod_name) === String(mod.module_id) || p.mod_name === mod.mod_name) &&
+            (p.sub_mod_id === mod.sub_mod_id || p.sub_mod_id === mod.sub_mod_name ||
+             String(p.sub_mod_name) === String(mod.sub_mod_id) || p.sub_mod_name === mod.sub_mod_name)
         );
         if (isAssigned) preSelected.add(idx);
       });
@@ -169,10 +188,35 @@ const UserRightsPage: React.FC = () => {
                     <TableRow key={u.user_code || i}>
                       <TableCell>{i + 1}</TableCell>
                       <TableCell className="font-medium">{u.user_name}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-1">
                         <Button variant="ghost" size="icon" onClick={() => openEdit(u)} title="Edit permissions">
                           <Pencil className="w-4 h-4" />
                         </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" title="Delete user" disabled={deletingUser === u.user_code}>
+                              {deletingUser === u.user_code ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete User</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete <strong>{u.user_name}</strong>? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(u)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))}
