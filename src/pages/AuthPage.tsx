@@ -41,6 +41,7 @@ const AuthPage: React.FC = () => {
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -105,7 +106,8 @@ const AuthPage: React.FC = () => {
           title: "Registration successful!",
           description: "You can now log in with your credentials.",
         });
-        loginForm.reset();
+        registerForm.reset();
+        setActiveTab("login");
       } else if (
         response.message?.toLowerCase().includes("already exists") ||
         response.message?.toLowerCase().includes("duplicate")
@@ -147,7 +149,7 @@ const AuthPage: React.FC = () => {
             <CardDescription>Sign in to manage your food operations</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="login" className="gap-2">
                   <LogIn className="w-4 h-4" />

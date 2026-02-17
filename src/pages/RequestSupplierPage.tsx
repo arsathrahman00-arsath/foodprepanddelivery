@@ -225,21 +225,6 @@ const RequestSupplierPage: React.FC = () => {
               </Select>
             </div>
 
-            {/* Supplier */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Supplier</label>
-              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select supplier" />
-                </SelectTrigger>
-                <SelectContent className="z-[200] bg-popover">
-                  {suppliers.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Category */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Category</label>
@@ -250,6 +235,21 @@ const RequestSupplierPage: React.FC = () => {
                 <SelectContent className="z-[200] bg-popover">
                   {categories.map((c) => (
                     <SelectItem key={c.cat_code} value={c.cat_code}>{c.cat_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Supplier */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Supplier</label>
+              <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select supplier" />
+                </SelectTrigger>
+                <SelectContent className="z-[200] bg-popover">
+                  {suppliers.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

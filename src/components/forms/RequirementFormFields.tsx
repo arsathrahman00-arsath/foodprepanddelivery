@@ -90,6 +90,18 @@ const RequirementFormFields: React.FC<RequirementFormFieldsProps> = ({
   const watchDateTo = form.watch("req_date_to");
   const watchEntries = form.watch("entries");
 
+  // Auto-populate all mosques when dates are selected
+  useEffect(() => {
+    if (watchDateFrom && watchDateTo && masjidList.length > 0) {
+      const currentEntries = form.getValues("entries");
+      // Only auto-populate if there's just the default empty entry
+      const isDefault = currentEntries.length === 1 && !currentEntries[0].masjid_name && !currentEntries[0].req_qty;
+      if (isDefault) {
+        form.setValue("entries", masjidList.map(m => ({ masjid_name: m.masjid_name, req_qty: "" })));
+      }
+    }
+  }, [watchDateFrom, watchDateTo, masjidList, form]);
+
   const dateRange = watchDateFrom && watchDateTo && watchDateTo >= watchDateFrom
     ? eachDayOfInterval({ start: watchDateFrom, end: watchDateTo })
     : [];
