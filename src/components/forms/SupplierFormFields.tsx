@@ -6,8 +6,9 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { supplierApi } from "@/lib/api";
+import { supplierApi, itemCategoryApi } from "@/lib/api";
 import { alphabetOnly, toProperCase } from "@/lib/utils";
 
 const schema = z.object({
@@ -15,6 +16,7 @@ const schema = z.object({
   sup_add: z.string().min(1, "Required").max(200),
   sup_city: z.string().min(1, "Required").max(50),
   sup_mobile: z.string().min(10, "Min 10 digits").max(15).regex(/^\d+$/, "Digits only"),
+  cat_code: z.string().min(1, "Please select a category"),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -24,27 +26,39 @@ interface Props {
   isModal?: boolean;
 }
 
+interface CategoryOption {
+  cat_code: number;
+  cat_name: string;
+}
+
 const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingNames, setExistingNames] = useState<Set<string>>(new Set());
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { sup_name: "", sup_add: "", sup_city: "", sup_mobile: "" },
+    defaultValues: { sup_name: "", sup_add: "", sup_city: "", sup_mobile: "", cat_code: "" },
   });
 
   useEffect(() => {
-    const loadExisting = async () => {
+    const loadData = async () => {
       try {
-        const res = await supplierApi.getAll();
-        if (res.status === "success" || res.status === "ok") {
-          setExistingNames(new Set((res.data || []).map((r: any) => r.sup_name?.toLowerCase())));
+        const [supRes, catRes] = await Promise.all([
+          supplierApi.getAll(),
+          itemCategoryApi.getAll(),
+        ]);
+        if (supRes.status === "success" || supRes.status === "ok") {
+          setExistingNames(new Set((supRes.data || []).map((r: any) => r.sup_name?.toLowerCase())));
+        }
+        if ((catRes.status === "success" || catRes.status === "ok") && catRes.data) {
+          setCategories(Array.isArray(catRes.data) ? catRes.data : []);
         }
       } catch {}
     };
-    loadExisting();
+    loadData();
   }, []);
 
   const onSubmit = async (data: FormData) => {
@@ -55,11 +69,14 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
     setIsLoading(true);
     setError(null);
     try {
+      const selectedCat = categories.find(c => String(c.cat_code) === data.cat_code);
       const response = await supplierApi.create({
         sup_name: toProperCase(data.sup_name.trim()),
         sup_add: toProperCase(data.sup_add.trim()),
         sup_city: toProperCase(data.sup_city.trim()),
         sup_mobile: data.sup_mobile,
+        cat_code: data.cat_code,
+        cat_name: selectedCat?.cat_name || "",
         created_by: user?.user_name || "",
       });
 
@@ -135,6 +152,25 @@ const SupplierFormFields: React.FC<Props> = ({ onSuccess }) => {
             <p className="text-xs text-destructive">{form.formState.errors.sup_mobile.message}</p>
           )}
         </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="cat_code">Category Name *</Label>
+        <Select
+          value={form.watch("cat_code")}
+          onValueChange={(val) => form.setValue("cat_code", val, { shouldValidate: true })}
+        >
+          <SelectTrigger className="h-10">
+            <SelectValue placeholder="Select category" />
+          </SelectTrigger>
+          <SelectContent className="z-[200] bg-popover">
+            {categories.map((c) => (
+              <SelectItem key={c.cat_code} value={String(c.cat_code)}>{c.cat_name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {form.formState.errors.cat_code && (
+          <p className="text-xs text-destructive">{form.formState.errors.cat_code.message}</p>
+        )}
       </div>
       <div className="pt-2">
         <Button type="submit" className="bg-gradient-warm hover:opacity-90 gap-2 w-full" disabled={isLoading}>
