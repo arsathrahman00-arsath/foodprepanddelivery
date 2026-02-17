@@ -371,6 +371,7 @@ export const userManagementApi = {
     sub_mod_name: string;
     created_by: string;
   }) => postFormData("/user_mapping/", data),
+  getPermissions: (data: { user_code: string }) => postFormData("/get_user_permissions/", data),
 };
 
 // Media viewing API endpoints
