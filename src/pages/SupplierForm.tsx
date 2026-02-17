@@ -10,6 +10,7 @@ const columns = [
   { key: "sup_add", label: "Address" },
   { key: "sup_city", label: "City" },
   { key: "sup_mobile", label: "Mobile" },
+  { key: "cat_name", label: "Category Name" },
   { key: "created_by", label: "Created By" },
 ];
 
@@ -26,7 +27,7 @@ const SupplierPage: React.FC = () => {
       onFormSuccess={() => {}}
       editDeleteConfig={{
         idKey: "sup_code",
-        editFields: ["sup_code", "sup_name", "sup_add", "sup_city", "sup_mobile"],
+        editFields: ["sup_code", "sup_name", "sup_add", "sup_city", "sup_mobile", "cat_code", "cat_name"],
         updateApi: supplierApi.update,
         deleteApi: supplierApi.delete,
       }}
