@@ -62,7 +62,7 @@ const AuthPage: React.FC = () => {
       
       if (response.status === "success" || response.status === "ok") {
         const userData = response.data || response;
-        login({
+        await login({
           user_name: userData.user_name || data.user_name,
           user_code: userData.user_code || "",
           role_selection: userData.role_selection || "user",

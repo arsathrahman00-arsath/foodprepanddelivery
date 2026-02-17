@@ -1,9 +1,10 @@
 import React from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ProtectedRoute: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, allowedRoutes } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -18,6 +19,12 @@ const ProtectedRoute: React.FC = () => {
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Check route-level permission (dashboard home is always allowed)
+  const currentPath = location.pathname;
+  if (currentPath !== "/dashboard" && !allowedRoutes.has(currentPath)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <Outlet />;

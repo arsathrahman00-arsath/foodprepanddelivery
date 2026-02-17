@@ -1,45 +1,17 @@
 import React, { useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
-  ChefHat,
-  MapPin,
-  Tag,
-  Ruler,
-  Package,
-  Truck,
-  BookOpen,
-  UtensilsCrossed,
-  LogOut,
-  LayoutDashboard,
-  User,
-  ChevronDown,
-  Database,
-  Calendar,
-  CalendarDays,
-  ClipboardList,
-  ChefHat as PrepIcon,
-  ListChecks,
-  PackageCheck,
-  Utensils,
-  Send,
-  SprayCan,
-  Flame,
-  Droplets,
-  Container,
-  Sandwich,
-  Archive,
-  Eye,
-  Settings,
-  ShieldCheck,
-  Settings2,
+  ChefHat, MapPin, Tag, Ruler, Package, Truck, BookOpen, UtensilsCrossed,
+  LogOut, LayoutDashboard, User, ChevronDown, Database, Calendar, CalendarDays,
+  ClipboardList, ChefHat as PrepIcon, ListChecks, PackageCheck, Utensils, Send,
+  SprayCan, Flame, Droplets, Container, Sandwich, Archive, Eye, Settings,
+  ShieldCheck, Settings2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
 interface NavItemProps {
@@ -52,10 +24,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label }) => (
   <NavLink
     to={to}
     className={({ isActive }) =>
-      cn(
-        "sidebar-item",
-        isActive && "sidebar-item-active"
-      )
+      cn("sidebar-item", isActive && "sidebar-item-active")
     }
   >
     {icon}
@@ -101,16 +70,24 @@ const settingsMenuItems = [
   { to: "/dashboard/settings/user-rights", icon: <ShieldCheck className="w-4 h-4" />, label: "User Rights" },
 ];
 
+interface MenuItem {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+}
+
 interface CollapsibleMenuProps {
   label: string;
   icon: React.ReactNode;
-  items: { to: string; icon: React.ReactNode; label: string }[];
+  items: MenuItem[];
   isActive: boolean;
   defaultOpen: boolean;
 }
 
 const CollapsibleMenu: React.FC<CollapsibleMenuProps> = ({ label, icon, items, isActive, defaultOpen }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  if (items.length === 0) return null;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -126,10 +103,7 @@ const CollapsibleMenu: React.FC<CollapsibleMenuProps> = ({ label, icon, items, i
             <span className="font-medium">{label}</span>
           </div>
           <ChevronDown
-            className={cn(
-              "w-4 h-4 transition-transform duration-200",
-              isOpen && "rotate-180"
-            )}
+            className={cn("w-4 h-4 transition-transform duration-200", isOpen && "rotate-180")}
           />
         </button>
       </CollapsibleTrigger>
@@ -139,10 +113,7 @@ const CollapsibleMenu: React.FC<CollapsibleMenuProps> = ({ label, icon, items, i
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              cn(
-                "sidebar-item text-sm py-2",
-                isActive && "sidebar-item-active"
-              )
+              cn("sidebar-item text-sm py-2", isActive && "sidebar-item-active")
             }
           >
             {item.icon}
@@ -154,17 +125,29 @@ const CollapsibleMenu: React.FC<CollapsibleMenuProps> = ({ label, icon, items, i
   );
 };
 
+/** Filter menu items to only those in the allowedRoutes set */
+const filterItems = (items: MenuItem[], allowedRoutes: Set<string>): MenuItem[] =>
+  items.filter((item) => allowedRoutes.has(item.to));
+
 const DashboardSidebar: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, allowedRoutes } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isMasterActive = masterMenuItems.some(item => location.pathname === item.to);
-  const isDeliveryPlanActive = deliveryPlanMenuItems.some(item => location.pathname === item.to);
-  const isPreparationActive = preparationMenuItems.some(item => location.pathname === item.to);
-  const isDistributionActive = distributionMenuItems.some(item => location.pathname === item.to);
-  const isCleaningActive = cleaningMenuItems.some(item => location.pathname === item.to);
-  const isSettingsActive = settingsMenuItems.some(item => location.pathname === item.to);
+  // Filter each section by permissions
+  const visibleMaster = filterItems(masterMenuItems, allowedRoutes);
+  const visibleDeliveryPlan = filterItems(deliveryPlanMenuItems, allowedRoutes);
+  const visiblePreparation = filterItems(preparationMenuItems, allowedRoutes);
+  const visibleDistribution = filterItems(distributionMenuItems, allowedRoutes);
+  const visibleCleaning = filterItems(cleaningMenuItems, allowedRoutes);
+  const visibleSettings = filterItems(settingsMenuItems, allowedRoutes);
+
+  const isMasterActive = visibleMaster.some(item => location.pathname === item.to);
+  const isDeliveryPlanActive = visibleDeliveryPlan.some(item => location.pathname === item.to);
+  const isPreparationActive = visiblePreparation.some(item => location.pathname === item.to);
+  const isDistributionActive = visibleDistribution.some(item => location.pathname === item.to);
+  const isCleaningActive = visibleCleaning.some(item => location.pathname === item.to);
+  const isSettingsActive = visibleSettings.some(item => location.pathname === item.to);
 
   const handleLogout = () => {
     logout();
@@ -190,19 +173,37 @@ const DashboardSidebar: React.FC = () => {
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         <NavItem to="/dashboard" icon={<LayoutDashboard className="w-5 h-5" />} label="Dashboard" />
 
-        <CollapsibleMenu label="Master" icon={<Database className="w-5 h-5" />} items={masterMenuItems} isActive={isMasterActive} defaultOpen={isMasterActive} />
-        <CollapsibleMenu label="Delivery Plan" icon={<Calendar className="w-5 h-5" />} items={deliveryPlanMenuItems} isActive={isDeliveryPlanActive} defaultOpen={isDeliveryPlanActive} />
-        <CollapsibleMenu label="Preparation" icon={<PrepIcon className="w-5 h-5" />} items={preparationMenuItems} isActive={isPreparationActive} defaultOpen={isPreparationActive} />
+        {visibleMaster.length > 0 && (
+          <CollapsibleMenu label="Master" icon={<Database className="w-5 h-5" />} items={visibleMaster} isActive={isMasterActive} defaultOpen={isMasterActive} />
+        )}
+        {visibleDeliveryPlan.length > 0 && (
+          <CollapsibleMenu label="Delivery Plan" icon={<Calendar className="w-5 h-5" />} items={visibleDeliveryPlan} isActive={isDeliveryPlanActive} defaultOpen={isDeliveryPlanActive} />
+        )}
+        {visiblePreparation.length > 0 && (
+          <CollapsibleMenu label="Preparation" icon={<PrepIcon className="w-5 h-5" />} items={visiblePreparation} isActive={isPreparationActive} defaultOpen={isPreparationActive} />
+        )}
 
-        <NavItem to="/dashboard/packing" icon={<PackageCheck className="w-5 h-5" />} label="Packing" />
-        <NavItem to="/dashboard/cooking" icon={<Flame className="w-5 h-5" />} label="Cooking" />
+        {allowedRoutes.has("/dashboard/packing") && (
+          <NavItem to="/dashboard/packing" icon={<PackageCheck className="w-5 h-5" />} label="Packing" />
+        )}
+        {allowedRoutes.has("/dashboard/cooking") && (
+          <NavItem to="/dashboard/cooking" icon={<Flame className="w-5 h-5" />} label="Cooking" />
+        )}
 
-        <CollapsibleMenu label="Cleaning" icon={<SprayCan className="w-5 h-5" />} items={cleaningMenuItems} isActive={isCleaningActive} defaultOpen={isCleaningActive} />
-        <CollapsibleMenu label="Distribution" icon={<Utensils className="w-5 h-5" />} items={distributionMenuItems} isActive={isDistributionActive} defaultOpen={isDistributionActive} />
+        {visibleCleaning.length > 0 && (
+          <CollapsibleMenu label="Cleaning" icon={<SprayCan className="w-5 h-5" />} items={visibleCleaning} isActive={isCleaningActive} defaultOpen={isCleaningActive} />
+        )}
+        {visibleDistribution.length > 0 && (
+          <CollapsibleMenu label="Distribution" icon={<Utensils className="w-5 h-5" />} items={visibleDistribution} isActive={isDistributionActive} defaultOpen={isDistributionActive} />
+        )}
 
-        <NavItem to="/dashboard/view-media" icon={<Eye className="w-5 h-5" />} label="View Media" />
+        {allowedRoutes.has("/dashboard/view-media") && (
+          <NavItem to="/dashboard/view-media" icon={<Eye className="w-5 h-5" />} label="View Media" />
+        )}
 
-        <CollapsibleMenu label="Settings" icon={<Settings className="w-5 h-5" />} items={settingsMenuItems} isActive={isSettingsActive} defaultOpen={isSettingsActive} />
+        {visibleSettings.length > 0 && (
+          <CollapsibleMenu label="Settings" icon={<Settings className="w-5 h-5" />} items={visibleSettings} isActive={isSettingsActive} defaultOpen={isSettingsActive} />
+        )}
       </nav>
 
       {/* User Section */}
