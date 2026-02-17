@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/lib/api";
@@ -21,9 +20,13 @@ const loginSchema = z.object({
 
 const registerSchema = z.object({
   user_name: z.string().min(1, "Username is required").max(50, "Username too long"),
-  user_pwd: z.string().min(4, "Password must be at least 4 characters").max(100, "Password too long"),
+  user_pwd: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[0-9]/, "Password must contain at least 1 number")
+    .regex(/[^a-zA-Z0-9]/, "Password must contain at least 1 special character")
+    .max(100, "Password too long"),
   confirm_pwd: z.string().min(1, "Please confirm your password"),
-  role_selection: z.string().min(1, "Please select a role"),
 }).refine((data) => data.user_pwd === data.confirm_pwd, {
   message: "Passwords don't match",
   path: ["confirm_pwd"],
@@ -46,7 +49,7 @@ const AuthPage: React.FC = () => {
 
   const registerForm = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { user_name: "", user_pwd: "", confirm_pwd: "", role_selection: "" },
+    defaultValues: { user_name: "", user_pwd: "", confirm_pwd: "" },
   });
 
   const handleLogin = async (data: LoginFormData) => {
@@ -94,7 +97,7 @@ const AuthPage: React.FC = () => {
         user_name: data.user_name,
         user_code: "",
         user_pwd: data.user_pwd,
-        role_selection: data.role_selection,
+        role_selection: "",
       });
       
       if (response.status === "success" || response.status === "ok") {
@@ -103,6 +106,11 @@ const AuthPage: React.FC = () => {
           description: "You can now log in with your credentials.",
         });
         loginForm.reset();
+      } else if (
+        response.message?.toLowerCase().includes("already exists") ||
+        response.message?.toLowerCase().includes("duplicate")
+      ) {
+        registerForm.setError("user_name", { message: "User already exists" });
       } else {
         toast({
           title: "Registration failed",
@@ -209,24 +217,6 @@ const AuthPage: React.FC = () => {
                     />
                     {registerForm.formState.errors.user_name && (
                       <p className="text-sm text-destructive">{registerForm.formState.errors.user_name.message}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-role">Role</Label>
-                    <Select onValueChange={(value) => registerForm.setValue("role_selection", value)}>
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select your role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="chef">Chef</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {registerForm.formState.errors.role_selection && (
-                      <p className="text-sm text-destructive">{registerForm.formState.errors.role_selection.message}</p>
                     )}
                   </div>
 

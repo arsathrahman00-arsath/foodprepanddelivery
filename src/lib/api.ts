@@ -348,6 +348,16 @@ export const cookingApi = {
   },
 };
 
+// Module Master API endpoints
+export const moduleApi = {
+  getAll: () => getData("/get_module/"),
+  create: (data: {
+    mod_name: string;
+    sub_mod_name: string;
+    created_by: string;
+  }) => postFormData("/post_module/", data),
+};
+
 // Media viewing API endpoints
 export const mediaApi = {
   getMedia: (date: string, type: string) =>
