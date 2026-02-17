@@ -142,6 +142,8 @@ export const supplierApi = {
     sup_add: string;
     sup_city: string;
     sup_mobile: string;
+    cat_code: string;
+    cat_name: string;
     created_by: string;
   }) => postFormData("/mastersupplier/", data),
   
