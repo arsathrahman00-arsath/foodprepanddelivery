@@ -24,7 +24,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { cn, toProperCase, formatDateForTable } from "@/lib/utils";
 import { dayRequirementsApi, bulkItemApi, bulkRequirementApi } from "@/lib/api";
-import { generateDayReqPdf } from "@/lib/generateDayReqPdf";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // API for fetching existing retail requirements
 const requirementListApi = {
@@ -40,6 +41,7 @@ interface ExistingRequirement {
   recipe_type: string;
   day_tot_req: string;
   purc_type: string;
+  purc_id: string;
   created_by: string;
 }
 
@@ -73,11 +75,13 @@ interface BulkItem {
   cat_code: string;
   unit_short: string;
   req_qty: number;
+  message?: string;
 }
 
 interface BulkExisting {
   day_req_date: string;
   purc_type: string;
+  purc_id: string;
   created_by: string;
 }
 
@@ -103,7 +107,7 @@ const DayRequirementsPage: React.FC = () => {
   const [showCloseWarning, setShowCloseWarning] = useState(false);
   const formInteracted = useRef(false);
   const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
-
+  const [downloadingBulkIndex, setDownloadingBulkIndex] = useState<number | null>(null);
   // Retail dialog state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedRecipeCode, setSelectedRecipeCode] = useState<string>("");
@@ -195,14 +199,110 @@ const DayRequirementsPage: React.FC = () => {
   const handleDownloadPdf = async (req: ExistingRequirement, index: number) => {
     setDownloadingIndex(index);
     try {
-      await generateDayReqPdf(req);
-      toast({ title: "Success", description: "PDF downloaded successfully" });
+      const formData = new FormData();
+      formData.append("day_req_date", req.day_req_date?.split("T")[0] || req.day_req_date);
+      formData.append("purc_id", req.purc_id || "");
+      formData.append("purc_type", req.purc_type || "Retail");
+      const response = await fetch("https://ngrchatbot.whindia.in/fpda/pdf_down/", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      if (result.status === "success" && result.data) {
+        generatePdfFromData(result.data, req.day_req_date, req.purc_type || "Retail");
+        toast({ title: "Success", description: "PDF downloaded successfully" });
+      } else {
+        throw new Error(result.message || "No data returned");
+      }
     } catch (error) {
       console.error("PDF generation failed:", error);
       toast({ title: "Error", description: "Failed to generate PDF", variant: "destructive" });
     } finally {
       setDownloadingIndex(null);
     }
+  };
+
+  const handleDownloadBulkPdf = async (req: BulkExisting, index: number) => {
+    setDownloadingBulkIndex(index);
+    try {
+      const formData = new FormData();
+      formData.append("day_req_date", req.day_req_date?.split("T")[0] || req.day_req_date);
+      formData.append("purc_id", req.purc_id || "");
+      formData.append("purc_type", req.purc_type || "Bulk");
+      const response = await fetch("https://ngrchatbot.whindia.in/fpda/pdf_down/", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      if (result.status === "success" && result.data) {
+        generatePdfFromData(result.data, req.day_req_date, req.purc_type || "Bulk");
+        toast({ title: "Success", description: "PDF downloaded successfully" });
+      } else {
+        throw new Error(result.message || "No data returned");
+      }
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+      toast({ title: "Error", description: "Failed to generate PDF", variant: "destructive" });
+    } finally {
+      setDownloadingBulkIndex(null);
+    }
+  };
+
+  const generatePdfFromData = (data: any[], dateStr: string, purcType: string) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const rawDate = dateStr?.split("T")[0] || dateStr;
+    const parts = rawDate.split("-");
+    const formattedDate = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : rawDate;
+
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Day Requirements Report", pageWidth / 2, 18, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Date: ${formattedDate}`, pageWidth - 14, 28, { align: "right" });
+    doc.text(`Purchase Type: ${purcType}`, 14, 28);
+
+    // Group items by category
+    const grouped: Record<string, any[]> = {};
+    (Array.isArray(data) ? data : []).forEach((item: any) => {
+      const cat = item.cat_name || "Other";
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(item);
+    });
+
+    let startY = 40;
+    const categoryNames = Object.keys(grouped).sort();
+
+    categoryNames.forEach((cat) => {
+      const catItems = grouped[cat].sort((a: any, b: any) => (a.item_name || "").localeCompare(b.item_name || ""));
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(cat, 14, startY);
+      startY += 2;
+
+      autoTable(doc, {
+        startY,
+        head: [["Item Name", "Unit", "Req Qty"]],
+        body: catItems.map((item: any) => [
+          item.item_name || "",
+          item.unit_short || "",
+          String(item.day_req_qty || item.req_qty || ""),
+        ]),
+        theme: "grid",
+        headStyles: { fillColor: [59, 130, 246], fontSize: 9 },
+        bodyStyles: { fontSize: 9 },
+        margin: { left: 14, right: 14 },
+      });
+
+      startY = (doc as any).lastAutoTable.finalY + 10;
+    });
+
+    doc.save(`Day_Requirements_${rawDate}_${purcType}.pdf`);
   };
 
   // Check if date already has retail requirements
@@ -428,7 +528,18 @@ const DayRequirementsPage: React.FC = () => {
       try {
         const response = await bulkItemApi.getAll();
         if (!cancelled && response.status === "success" && response.data) {
-          setBulkItems(Array.isArray(response.data) ? response.data : []);
+          const items: BulkItem[] = Array.isArray(response.data) ? response.data : [];
+          const existingItems = items.filter(item => item.message === "This item already exists");
+          if (existingItems.length > 0 && existingItems.length === items.length) {
+            toast({ title: "Duplicate Items", description: "All items already exist for the selected dates. No new items to add.", variant: "destructive" });
+            setBulkItems([]);
+          } else {
+            const validItems = items.filter(item => item.message !== "This item already exists");
+            setBulkItems(validItems.length > 0 ? validItems : items);
+            if (existingItems.length > 0 && validItems.length > 0) {
+              toast({ title: "Info", description: `${existingItems.length} item(s) already exist and have been excluded.` });
+            }
+          }
           setSelectedBulkItems(new Set());
         }
       } catch (error) {
@@ -867,6 +978,7 @@ const DayRequirementsPage: React.FC = () => {
                     <TableRow className="bg-muted/50">
                       <TableHead>Date</TableHead>
                       <TableHead>Purchase Type</TableHead>
+                      <TableHead>Purchase ID</TableHead>
                       <TableHead>Recipe Type</TableHead>
                       <TableHead className="text-right">Total Daily Req</TableHead>
                       <TableHead>Created By</TableHead>
@@ -875,9 +987,9 @@ const DayRequirementsPage: React.FC = () => {
                   </TableHeader>
                   <TableBody>
                     {isLoadingRetail ? (
-                      <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                     ) : filteredRetail.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No retail requirements found</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No retail requirements found</TableCell></TableRow>
                     ) : (
                       filteredRetail.map((req, index) => (
                         <TableRow key={index}>
@@ -887,6 +999,7 @@ const DayRequirementsPage: React.FC = () => {
                               {req.purc_type || "Retail"}
                             </span>
                           </TableCell>
+                          <TableCell>{req.purc_id || "-"}</TableCell>
                           <TableCell className="font-medium">{toProperCase(req.recipe_type || "-")}</TableCell>
                           <TableCell className="text-right">{req.day_tot_req || "-"}</TableCell>
                           <TableCell>{toProperCase(req.created_by)}</TableCell>
@@ -923,14 +1036,16 @@ const DayRequirementsPage: React.FC = () => {
                     <TableRow className="bg-muted/50">
                       <TableHead>Date</TableHead>
                       <TableHead>Purchase Type</TableHead>
+                      <TableHead>Purchase ID</TableHead>
                       <TableHead>Created By</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoadingBulk ? (
-                      <TableRow><TableCell colSpan={3} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                     ) : filteredBulk.length === 0 ? (
-                      <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No bulk requirements found</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No bulk requirements found</TableCell></TableRow>
                     ) : (
                       filteredBulk.map((req, index) => (
                         <TableRow key={index}>
@@ -940,7 +1055,13 @@ const DayRequirementsPage: React.FC = () => {
                               {req.purc_type || "Bulk"}
                             </span>
                           </TableCell>
+                          <TableCell>{req.purc_id || "-"}</TableCell>
                           <TableCell>{toProperCase(req.created_by)}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadBulkPdf(req, index)} disabled={downloadingBulkIndex === index}>
+                              {downloadingBulkIndex === index ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
