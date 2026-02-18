@@ -39,6 +39,7 @@ interface ExistingRequirement {
   day_req_date: string;
   recipe_type: string;
   day_tot_req: string;
+  purc_type: string;
   created_by: string;
 }
 
@@ -133,17 +134,27 @@ const DayRequirementsPage: React.FC = () => {
     }
   };
 
-  // Fetch existing requirements for table
+  // Fetch existing requirements for table (retail + bulk)
   const fetchExistingRequirements = async () => {
     setIsLoadingExisting(true);
     try {
-      const response = await requirementListApi.getAll();
-      if (response.status === "success" && response.data) {
-        setExistingRequirements(
-          (Array.isArray(response.data) ? response.data : [])
-            .sort((a: ExistingRequirement, b: ExistingRequirement) => new Date(a.day_req_date).getTime() - new Date(b.day_req_date).getTime())
-        );
-      }
+      const [retailResponse, bulkResponse] = await Promise.all([
+        requirementListApi.getAll(),
+        dayRequirementsApi.getBulkList(),
+      ]);
+
+      const retailData: ExistingRequirement[] = (retailResponse.status === "success" && Array.isArray(retailResponse.data))
+        ? retailResponse.data.map((r: any) => ({ ...r, purc_type: r.purc_type || "Retail" }))
+        : [];
+
+      const bulkData: ExistingRequirement[] = (bulkResponse.status === "success" && Array.isArray(bulkResponse.data))
+        ? bulkResponse.data.map((r: any) => ({ ...r, purc_type: r.purc_type || "Bulk" }))
+        : [];
+
+      const combined = [...retailData, ...bulkData].sort(
+        (a, b) => new Date(a.day_req_date).getTime() - new Date(b.day_req_date).getTime()
+      );
+      setExistingRequirements(combined);
     } catch (error) {
       console.error("Failed to fetch existing requirements:", error);
     } finally {
@@ -159,6 +170,7 @@ const DayRequirementsPage: React.FC = () => {
         const q = searchQuery.toLowerCase();
         return (
           (req.day_req_date && formatDateForTable(req.day_req_date).toLowerCase().includes(q)) ||
+          (req.purc_type && req.purc_type.toLowerCase().includes(q)) ||
           (req.recipe_type && req.recipe_type.toLowerCase().includes(q)) ||
           (req.day_tot_req && String(req.day_tot_req).includes(q)) ||
           (req.created_by && req.created_by.toLowerCase().includes(q))
@@ -350,29 +362,39 @@ const DayRequirementsPage: React.FC = () => {
       const recipeType = selectedRecipe.recipe_type;
       const createdBy = user?.user_name || "";
 
-      await dayRequirementsApi.createHeader({
+      // Step 1: Create header to get purc_id
+      const headerResponse = await dayRequirementsApi.createHeader({
         day_req_date: formattedDate,
         recipe_type: recipeType,
         recipe_code: recipeCode,
         day_tot_req: String(totalDailyRequirement),
+        purc_type: "Retail",
         created_by: createdBy,
       });
 
+      const purcId = headerResponse.data?.purc_id ?? (headerResponse as any).purc_id;
+      if (headerResponse.status !== "success" || !purcId) {
+        throw new Error(headerResponse.message || "Failed to create requirement header");
+      }
+
+      const purcIdStr = String(purcId);
+
+      // Step 2: Create transaction records with purc_id
       const selectedItemsList = recipeItems.filter(item => selectedItems.has(item.item_name));
       
-      await Promise.all(
-        selectedItemsList.map(item =>
-          dayRequirementsApi.createTransaction({
-            day_req_date: formattedDate,
-            recipe_code: recipeCode,
-            item_name: item.item_name,
-            cat_name: item.cat_name,
-            unit_short: item.unit_short,
-            day_req_qty: String(getMultipliedQty(item.req_qty)),
-            created_by: createdBy,
-          })
-        )
-      );
+      for (const item of selectedItemsList) {
+        await dayRequirementsApi.createTransaction({
+          purc_id: purcIdStr,
+          day_req_date: formattedDate,
+          recipe_code: recipeCode,
+          item_name: item.item_name,
+          cat_name: item.cat_name,
+          unit_short: item.unit_short,
+          day_req_qty: String(getMultipliedQty(item.req_qty)),
+          purc_type: "Retail",
+          created_by: createdBy,
+        });
+      }
 
       toast({ title: "Success", description: "Day requirements saved successfully" });
       formInteracted.current = false;
@@ -863,6 +885,7 @@ const DayRequirementsPage: React.FC = () => {
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead>Date</TableHead>
+                  <TableHead>Purchase Type</TableHead>
                   <TableHead>Recipe Type</TableHead>
                   <TableHead className="text-right">Total Daily Req</TableHead>
                   <TableHead>Created By</TableHead>
@@ -871,15 +894,23 @@ const DayRequirementsPage: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {isLoadingExisting ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                 ) : filteredRequirements.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No day requirements found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No day requirements found</TableCell></TableRow>
                 ) : (
                   filteredRequirements.map((req, index) => (
                     <TableRow key={index}>
                       <TableCell>{formatDateForTable(req.day_req_date)}</TableCell>
-                      <TableCell className="font-medium">{toProperCase(req.recipe_type)}</TableCell>
-                      <TableCell className="text-right">{req.day_tot_req}</TableCell>
+                      <TableCell>
+                        <span className={cn(
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+                          req.purc_type === "Bulk" ? "bg-accent text-accent-foreground" : "bg-primary/10 text-primary"
+                        )}>
+                          {req.purc_type || "Retail"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-medium">{toProperCase(req.recipe_type || "-")}</TableCell>
+                      <TableCell className="text-right">{req.day_tot_req || "-"}</TableCell>
                       <TableCell>{toProperCase(req.created_by)}</TableCell>
                       <TableCell>
                         <Button

@@ -259,17 +259,21 @@ export const dayRequirementsApi = {
     recipe_type: string;
     recipe_code: string;
     day_tot_req: string;
+    purc_type: string;
     created_by: string;
   }) => postFormData("/requirment_hd/", data),
   createTransaction: (data: {
+    purc_id: string;
     day_req_date: string;
     recipe_code: string;
     item_name: string;
     cat_name: string;
     unit_short: string;
     day_req_qty: string;
+    purc_type: string;
     created_by: string;
   }) => postFormData("/requirment_tr/", data),
+  getBulkList: () => getData("/get_bulk_requirement/"),
 };
 
 // Packing API endpoints
