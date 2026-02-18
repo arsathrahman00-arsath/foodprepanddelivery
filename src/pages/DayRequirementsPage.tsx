@@ -425,10 +425,10 @@ const DayRequirementsPage: React.FC = () => {
       const datesArray = dateRange.map(d => format(d, "yyyy-MM-dd"));
       const createdBy = user?.user_name || "";
 
-      await Promise.all(
-        bulkItems.map(item =>
+      const requests = bulkItems.flatMap(item =>
+        datesArray.map(date =>
           bulkRequirementApi.create({
-            dates: JSON.stringify(datesArray),
+            dates: date,
             recipe_code: String(item.item_code || ""),
             item_name: item.item_name,
             cat_name: item.cat_name,
@@ -439,6 +439,7 @@ const DayRequirementsPage: React.FC = () => {
           })
         )
       );
+      await Promise.all(requests);
 
       toast({ title: "Success", description: "Bulk requirements saved successfully" });
       formInteracted.current = false;
