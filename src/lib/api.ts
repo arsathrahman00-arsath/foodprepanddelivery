@@ -253,7 +253,7 @@ export const recipeTypeListApi = {
 export const dayRequirementsApi = {
   getByDate: (date: string) => postFormData("/get_recipe_and_qty_by_date/", { date }),
   getRecipeTotpkt: (recipeType: string) => postFormData("/get_recipe_totpkt_by_type/", { recipe_type: recipeType }),
-  getRecipeItems: (recipeType: string) => postFormData("/dayrequirment/", { recipe_type: recipeType }),
+  getRecipeItems: (recipeType: string, date: string) => postFormData("/dayrequirment/", { recipe_type: recipeType, date }),
   createHeader: (data: {
     day_req_date: string;
     recipe_type: string;

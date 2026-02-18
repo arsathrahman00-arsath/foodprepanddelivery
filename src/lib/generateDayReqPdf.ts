@@ -25,7 +25,7 @@ export async function generateDayReqPdf(row: RequirementRow): Promise<void> {
   const recipeType = row.recipe_type.trim();
 
   const [itemsRes, totpktRes] = await Promise.all([
-    dayRequirementsApi.getRecipeItems(recipeType),
+    dayRequirementsApi.getRecipeItems(recipeType, row.day_req_date.split("T")[0]),
     dayRequirementsApi.getRecipeTotpkt(recipeType),
   ]);
 

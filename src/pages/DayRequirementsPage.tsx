@@ -316,7 +316,7 @@ const DayRequirementsPage: React.FC = () => {
 
   useEffect(() => {
     if (!dialogOpen || activeTab !== "retail") return;
-    if (!selectedRecipeCode || !selectedRecipe) {
+    if (!selectedRecipeCode || !selectedRecipe || !selectedDate) {
       setRecipeItems([]);
       setSelectedItems(new Set());
       return;
@@ -324,7 +324,8 @@ const DayRequirementsPage: React.FC = () => {
     const fetchRecipeItems = async () => {
       setIsLoadingItems(true);
       try {
-        const response = await dayRequirementsApi.getRecipeItems(selectedRecipe.recipe_type);
+        const formattedDate = format(selectedDate, "yyyy-MM-dd");
+        const response = await dayRequirementsApi.getRecipeItems(selectedRecipe.recipe_type, formattedDate);
         if (response.status === "success" && response.data) {
           setRecipeItems(response.data);
           setSelectedItems(new Set(response.data.map((item: RecipeItem) => item.item_name)));
