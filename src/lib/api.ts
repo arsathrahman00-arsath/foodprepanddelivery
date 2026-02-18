@@ -386,6 +386,8 @@ export const mediaApi = {
 export const supplierRequisitionApi = {
   getItems: (data: { cat_code: string; day_req_date: string; recipe_code: string }) =>
     postFormData("/requestionsupplier/", data),
+  getSuppliersByCategory: (cat_code: string) =>
+    postFormData("/get_supplier_category/", { cat_code }),
 };
 
 // Material Receipt API endpoints
