@@ -526,7 +526,7 @@ const DayRequirementsPage: React.FC = () => {
     const fetchBulkItems = async () => {
       setIsLoadingBulkItems(true);
       try {
-        const response = await bulkItemApi.getAll();
+        const response = await bulkItemApi.getAll(format(bulkFromDate, "yyyy-MM-dd"), format(bulkToDate, "yyyy-MM-dd"));
         if (!cancelled && response.status === "success" && response.data) {
           const items: BulkItem[] = Array.isArray(response.data) ? response.data : [];
           const existingItems = items.filter(item => item.message === "This item already exists");
