@@ -20,13 +20,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { cn, toProperCase, formatDateForTable } from "@/lib/utils";
 import { dayRequirementsApi, bulkItemApi, bulkRequirementApi } from "@/lib/api";
 import { generateDayReqPdf } from "@/lib/generateDayReqPdf";
 
-// Add the new API for fetching existing requirements
+// API for fetching existing retail requirements
 const requirementListApi = {
   getAll: async () => {
     const response = await fetch("https://ngrchatbot.whindia.in/fpda/get_requirement/");
@@ -75,22 +75,34 @@ interface BulkItem {
   req_qty: number;
 }
 
-type PurchaseType = "Retail" | "Bulk" | null;
+interface BulkExisting {
+  day_req_date: string;
+  purc_type: string;
+  created_by: string;
+}
 
 const DayRequirementsPage: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
-  // Existing requirements table state
-  const [existingRequirements, setExistingRequirements] = useState<ExistingRequirement[]>([]);
-  const [isLoadingExisting, setIsLoadingExisting] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+
+  // Active tab
+  const [activeTab, setActiveTab] = useState("retail");
+
+  // Retail table state
+  const [retailRequirements, setRetailRequirements] = useState<ExistingRequirement[]>([]);
+  const [isLoadingRetail, setIsLoadingRetail] = useState(true);
+  const [retailSearch, setRetailSearch] = useState("");
+
+  // Bulk table state
+  const [bulkRequirements, setBulkRequirements] = useState<BulkExisting[]>([]);
+  const [isLoadingBulk, setIsLoadingBulk] = useState(true);
+  const [bulkSearch, setBulkSearch] = useState("");
+
+  // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
   const formInteracted = useRef(false);
-
-  // Purchase type selection
-  const [purchaseType, setPurchaseType] = useState<PurchaseType>(null);
+  const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
 
   // Retail dialog state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -102,17 +114,17 @@ const DayRequirementsPage: React.FC = () => {
   const [recipeTotpkt, setRecipeTotpkt] = useState<number>(0);
   const [totalDailyRequirementKg, setTotalDailyRequirementKg] = useState<number>(0);
   const [totalDailyRequirementRound, setTotalDailyRequirementRound] = useState<number>(0);
-  
+
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [isLoadingTotpkt, setIsLoadingTotpkt] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
 
-  // Bulk flow state
+  // Bulk dialog state
   const [bulkFromDate, setBulkFromDate] = useState<Date | undefined>();
   const [bulkToDate, setBulkToDate] = useState<Date | undefined>();
   const [bulkItems, setBulkItems] = useState<BulkItem[]>([]);
+  const [selectedBulkItems, setSelectedBulkItems] = useState<Set<string>>(new Set());
   const [isLoadingBulkItems, setIsLoadingBulkItems] = useState(false);
   const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
   const bulkSubmitLock = useRef(false);
@@ -120,6 +132,65 @@ const DayRequirementsPage: React.FC = () => {
   const bulkTotalDays = bulkFromDate && bulkToDate
     ? differenceInCalendarDays(bulkToDate, bulkFromDate) + 1
     : 0;
+
+  // ===== DATA FETCHING =====
+
+  const fetchRetailRequirements = async () => {
+    setIsLoadingRetail(true);
+    try {
+      const response = await requirementListApi.getAll();
+      if (response.status === "success" && Array.isArray(response.data)) {
+        setRetailRequirements(response.data.map((r: any) => ({ ...r, purc_type: r.purc_type || "Retail" })));
+      }
+    } catch (error) {
+      console.error("Failed to fetch retail requirements:", error);
+    } finally {
+      setIsLoadingRetail(false);
+    }
+  };
+
+  const fetchBulkRequirements = async () => {
+    setIsLoadingBulk(true);
+    try {
+      const response = await dayRequirementsApi.getBulkList();
+      if (response.status === "success" && Array.isArray(response.data)) {
+        setBulkRequirements(response.data.map((r: any) => ({ ...r, purc_type: r.purc_type || "Bulk" })));
+      }
+    } catch (error) {
+      console.error("Failed to fetch bulk requirements:", error);
+    } finally {
+      setIsLoadingBulk(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRetailRequirements();
+    fetchBulkRequirements();
+  }, []);
+
+  // Filtered data
+  const filteredRetail = retailSearch.trim()
+    ? retailRequirements.filter((req) => {
+        const q = retailSearch.toLowerCase();
+        return (
+          formatDateForTable(req.day_req_date).toLowerCase().includes(q) ||
+          (req.recipe_type && req.recipe_type.toLowerCase().includes(q)) ||
+          (req.day_tot_req && String(req.day_tot_req).includes(q)) ||
+          (req.created_by && req.created_by.toLowerCase().includes(q))
+        );
+      })
+    : retailRequirements;
+
+  const filteredBulk = bulkSearch.trim()
+    ? bulkRequirements.filter((req) => {
+        const q = bulkSearch.toLowerCase();
+        return (
+          formatDateForTable(req.day_req_date).toLowerCase().includes(q) ||
+          (req.purc_type && req.purc_type.toLowerCase().includes(q)) ||
+          (req.created_by && req.created_by.toLowerCase().includes(q))
+        );
+      })
+    : bulkRequirements;
 
   const handleDownloadPdf = async (req: ExistingRequirement, index: number) => {
     setDownloadingIndex(index);
@@ -134,59 +205,14 @@ const DayRequirementsPage: React.FC = () => {
     }
   };
 
-  // Fetch existing requirements for table (retail + bulk)
-  const fetchExistingRequirements = async () => {
-    setIsLoadingExisting(true);
-    try {
-      const [retailResponse, bulkResponse] = await Promise.all([
-        requirementListApi.getAll(),
-        dayRequirementsApi.getBulkList(),
-      ]);
-
-      const retailData: ExistingRequirement[] = (retailResponse.status === "success" && Array.isArray(retailResponse.data))
-        ? retailResponse.data.map((r: any) => ({ ...r, purc_type: r.purc_type || "Retail" }))
-        : [];
-
-      const bulkData: ExistingRequirement[] = (bulkResponse.status === "success" && Array.isArray(bulkResponse.data))
-        ? bulkResponse.data.map((r: any) => ({ ...r, purc_type: r.purc_type || "Bulk" }))
-        : [];
-
-      const combined = [...retailData, ...bulkData].sort(
-        (a, b) => new Date(a.day_req_date).getTime() - new Date(b.day_req_date).getTime()
-      );
-      setExistingRequirements(combined);
-    } catch (error) {
-      console.error("Failed to fetch existing requirements:", error);
-    } finally {
-      setIsLoadingExisting(false);
-    }
-  };
-
-  useEffect(() => { fetchExistingRequirements(); }, []);
-
-  // Filtered existing requirements
-  const filteredRequirements = searchQuery.trim()
-    ? existingRequirements.filter((req) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          (req.day_req_date && formatDateForTable(req.day_req_date).toLowerCase().includes(q)) ||
-          (req.purc_type && req.purc_type.toLowerCase().includes(q)) ||
-          (req.recipe_type && req.recipe_type.toLowerCase().includes(q)) ||
-          (req.day_tot_req && String(req.day_tot_req).includes(q)) ||
-          (req.created_by && req.created_by.toLowerCase().includes(q))
-        );
-      })
-    : existingRequirements;
-
-  // Check if date already has requirements
+  // Check if date already has retail requirements
   const isDateAlreadyUsed = (date: Date): boolean => {
     const formatted = format(date, "yyyy-MM-dd");
-    return existingRequirements.some(r => r.day_req_date?.split("T")[0] === formatted);
+    return retailRequirements.some(r => r.day_req_date?.split("T")[0] === formatted);
   };
 
   // Reset dialog state
   const resetDialog = () => {
-    setPurchaseType(null);
     setSelectedDate(undefined);
     setSelectedRecipeCode("");
     setRecipeTypesData([]);
@@ -199,13 +225,13 @@ const DayRequirementsPage: React.FC = () => {
     setBulkFromDate(undefined);
     setBulkToDate(undefined);
     setBulkItems([]);
+    setSelectedBulkItems(new Set());
   };
 
   // ===== RETAIL FLOW LOGIC =====
 
-  // Fetch recipe types and quantities when date changes
   useEffect(() => {
-    if (purchaseType !== "Retail") return;
+    if (!dialogOpen || activeTab !== "retail") return;
     if (!selectedDate) {
       setRecipeTypesData([]);
       setTotalDailyRequirement(0);
@@ -217,11 +243,7 @@ const DayRequirementsPage: React.FC = () => {
     }
 
     if (isDateAlreadyUsed(selectedDate)) {
-      toast({
-        title: "Duplicate Date",
-        description: "Day requirements already exist for this date",
-        variant: "destructive",
-      });
+      toast({ title: "Duplicate Date", description: "Day requirements already exist for this date", variant: "destructive" });
       setSelectedDate(undefined);
       return;
     }
@@ -231,25 +253,18 @@ const DayRequirementsPage: React.FC = () => {
       try {
         const formattedDate = format(selectedDate, "yyyy-MM-dd");
         const response = await dayRequirementsApi.getByDate(formattedDate);
-        
         if (response.status === "success" && response.data) {
           const data = response.data as DateResponseData;
           const recipes = data.recipes || [];
           const reqQtyArray = data.req_qty || [];
-          
           const transformedData: RecipeTypeDisplay[] = recipes.map((recipe, index) => ({
             recipe_type: recipe.recipe_type.trim(),
             recipe_code: recipe.recipe_code,
             req_qty: Number(reqQtyArray[index]) || 0,
           }));
-          
           setRecipeTypesData(transformedData);
-          if (transformedData.length > 0) {
-            setSelectedRecipeCode(transformedData[0].recipe_code);
-          }
-          
-          const total = reqQtyArray.reduce((sum: number, qty: number) => sum + (Number(qty) || 0), 0);
-          setTotalDailyRequirement(total);
+          if (transformedData.length > 0) setSelectedRecipeCode(transformedData[0].recipe_code);
+          setTotalDailyRequirement(reqQtyArray.reduce((sum: number, qty: number) => sum + (Number(qty) || 0), 0));
         } else {
           setRecipeTypesData([]);
           setTotalDailyRequirement(0);
@@ -263,22 +278,19 @@ const DayRequirementsPage: React.FC = () => {
         setIsLoadingData(false);
       }
     };
-
     fetchDataByDate();
-  }, [selectedDate, purchaseType]);
+  }, [selectedDate, dialogOpen, activeTab]);
 
   const selectedRecipe = recipeTypesData.find(r => r.recipe_code === selectedRecipeCode);
 
-  // Fetch recipe_totpkt when recipe type changes (still needed for calculations)
   useEffect(() => {
-    if (purchaseType !== "Retail") return;
+    if (!dialogOpen || activeTab !== "retail") return;
     if (!selectedRecipeCode || !selectedRecipe) {
       setRecipeTotpkt(0);
       setTotalDailyRequirementKg(0);
       setTotalDailyRequirementRound(0);
       return;
     }
-
     const fetchRecipeTotpkt = async () => {
       setIsLoadingTotpkt(true);
       try {
@@ -299,19 +311,16 @@ const DayRequirementsPage: React.FC = () => {
         setIsLoadingTotpkt(false);
       }
     };
-
     fetchRecipeTotpkt();
-  }, [selectedRecipeCode, selectedRecipe, totalDailyRequirement, purchaseType]);
+  }, [selectedRecipeCode, selectedRecipe, totalDailyRequirement, dialogOpen, activeTab]);
 
-  // Fetch recipe items when recipe code changes
   useEffect(() => {
-    if (purchaseType !== "Retail") return;
+    if (!dialogOpen || activeTab !== "retail") return;
     if (!selectedRecipeCode || !selectedRecipe) {
       setRecipeItems([]);
       setSelectedItems(new Set());
       return;
     }
-
     const fetchRecipeItems = async () => {
       setIsLoadingItems(true);
       try {
@@ -327,9 +336,8 @@ const DayRequirementsPage: React.FC = () => {
         setIsLoadingItems(false);
       }
     };
-
     fetchRecipeItems();
-  }, [selectedRecipeCode, selectedRecipe, purchaseType]);
+  }, [selectedRecipeCode, selectedRecipe, dialogOpen, activeTab]);
 
   const toggleItemSelection = (itemName: string) => {
     const newSelection = new Set(selectedItems);
@@ -354,7 +362,6 @@ const DayRequirementsPage: React.FC = () => {
       toast({ title: "Validation Error", description: "Please select a date, recipe type, and at least one item", variant: "destructive" });
       return;
     }
-
     setIsSubmitting(true);
     try {
       const formattedDate = format(selectedDate, "yyyy-MM-dd'T'00:00:00");
@@ -362,7 +369,6 @@ const DayRequirementsPage: React.FC = () => {
       const recipeType = selectedRecipe.recipe_type;
       const createdBy = user?.user_name || "";
 
-      // Step 1: Create header to get purc_id
       const headerResponse = await dayRequirementsApi.createHeader({
         day_req_date: formattedDate,
         recipe_type: recipeType,
@@ -378,10 +384,8 @@ const DayRequirementsPage: React.FC = () => {
       }
 
       const purcIdStr = String(purcId);
-
-      // Step 2: Create transaction records with purc_id
       const selectedItemsList = recipeItems.filter(item => selectedItems.has(item.item_name));
-      
+
       for (const item of selectedItemsList) {
         await dayRequirementsApi.createTransaction({
           purc_id: purcIdStr,
@@ -400,7 +404,7 @@ const DayRequirementsPage: React.FC = () => {
       formInteracted.current = false;
       setDialogOpen(false);
       resetDialog();
-      fetchExistingRequirements();
+      fetchRetailRequirements();
     } catch (error) {
       console.error("Failed to save day requirements:", error);
       toast({ title: "Error", description: "Failed to save day requirements", variant: "destructive" });
@@ -411,13 +415,12 @@ const DayRequirementsPage: React.FC = () => {
 
   // ===== BULK FLOW LOGIC =====
 
-  // Fetch bulk items when both dates are selected
   useEffect(() => {
-    if (purchaseType !== "Bulk" || !bulkFromDate || !bulkToDate) {
+    if (!dialogOpen || activeTab !== "bulk" || !bulkFromDate || !bulkToDate) {
       setBulkItems([]);
+      setSelectedBulkItems(new Set());
       return;
     }
-
     let cancelled = false;
     const fetchBulkItems = async () => {
       setIsLoadingBulkItems(true);
@@ -425,6 +428,7 @@ const DayRequirementsPage: React.FC = () => {
         const response = await bulkItemApi.getAll();
         if (!cancelled && response.status === "success" && response.data) {
           setBulkItems(Array.isArray(response.data) ? response.data : []);
+          setSelectedBulkItems(new Set());
         }
       } catch (error) {
         if (!cancelled) {
@@ -435,15 +439,26 @@ const DayRequirementsPage: React.FC = () => {
         if (!cancelled) setIsLoadingBulkItems(false);
       }
     };
-
     fetchBulkItems();
     return () => { cancelled = true; };
-  }, [bulkFromDate, bulkToDate, purchaseType]);
+  }, [bulkFromDate, bulkToDate, dialogOpen, activeTab]);
+
+  const toggleBulkItemSelection = (itemName: string) => {
+    const newSelection = new Set(selectedBulkItems);
+    if (newSelection.has(itemName)) newSelection.delete(itemName);
+    else newSelection.add(itemName);
+    setSelectedBulkItems(newSelection);
+  };
+
+  const toggleAllBulkItems = () => {
+    if (selectedBulkItems.size === bulkItems.length) setSelectedBulkItems(new Set());
+    else setSelectedBulkItems(new Set(bulkItems.map(item => item.item_name)));
+  };
 
   const handleBulkSubmit = async () => {
     if (bulkSubmitLock.current) return;
-    if (!bulkFromDate || !bulkToDate || bulkItems.length === 0) {
-      toast({ title: "Validation Error", description: "Please select dates and ensure items are loaded", variant: "destructive" });
+    if (!bulkFromDate || !bulkToDate || selectedBulkItems.size === 0) {
+      toast({ title: "Validation Error", description: "Please select dates and at least one item", variant: "destructive" });
       return;
     }
 
@@ -454,7 +469,6 @@ const DayRequirementsPage: React.FC = () => {
       const datesArray = dateRange.map(d => format(d, "yyyy-MM-dd"));
       const createdBy = user?.user_name || "";
 
-      // Step 1: Create header with all dates to get purc_id
       const headerResponse = await bulkRequirementApi.createHeader({
         day_req_date: JSON.stringify(datesArray),
         purc_type: "Bulk",
@@ -467,9 +481,9 @@ const DayRequirementsPage: React.FC = () => {
       }
 
       const purcIdStr = String(purcId);
+      const selectedBulkItemsList = bulkItems.filter(item => selectedBulkItems.has(item.item_name));
 
-      // Step 2: Create transaction records sequentially for each item × date
-      for (const item of bulkItems) {
+      for (const item of selectedBulkItemsList) {
         for (const date of datesArray) {
           await bulkRequirementApi.createTransaction({
             purc_id: purcIdStr,
@@ -489,7 +503,7 @@ const DayRequirementsPage: React.FC = () => {
       formInteracted.current = false;
       setDialogOpen(false);
       resetDialog();
-      fetchExistingRequirements();
+      fetchBulkRequirements();
     } catch (error) {
       console.error("Failed to save bulk requirements:", error);
       toast({ title: "Error", description: "Failed to save bulk requirements", variant: "destructive" });
@@ -499,440 +513,441 @@ const DayRequirementsPage: React.FC = () => {
     }
   };
 
+  // ===== RENDER =====
+
+  const dialogTitle = activeTab === "retail" ? "Add Day Requirement - Retail" : "Add Day Requirement - Bulk";
+
   return (
     <div className="space-y-6" onInput={() => { formInteracted.current = true; }} onChange={() => { formInteracted.current = true; }}>
       <Card className="shadow-warm border-0">
         <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-warm flex items-center justify-center">
-                <ClipboardList className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-xl">Day Requirements</CardTitle>
-                <CardDescription>Plan daily ingredient requirements based on recipes</CardDescription>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-warm flex items-center justify-center">
+              <ClipboardList className="w-5 h-5 text-primary-foreground" />
             </div>
-            <Dialog open={dialogOpen} onOpenChange={(open) => {
-              if (!open && formInteracted.current) {
-                setShowCloseWarning(true);
-                return;
-              }
-              if (open) formInteracted.current = false;
-              setDialogOpen(open);
-            }}>
-              <DialogTrigger asChild>
-                <Button className="gap-2"><Plus className="w-4 h-4" /> Add Day Requirement</Button>
-              </DialogTrigger>
-              <DialogContent
-                className="sm:max-w-4xl max-h-[90vh] overflow-y-auto"
-                onInteractOutside={(e) => e.preventDefault()}
-                onEscapeKeyDown={(e) => e.preventDefault()}
-              >
-                <DialogHeader>
-                  <DialogTitle>Add Day Requirement</DialogTitle>
-                </DialogHeader>
-
-                {/* Purchase Type Selection */}
-                {!purchaseType && (
-                  <div className="space-y-6 py-6">
-                    <p className="text-sm text-muted-foreground text-center">Select the purchase type for this requirement</p>
-                    <div className="flex justify-center gap-6">
-                      <Card
-                        className="w-48 cursor-pointer border-2 hover:border-primary transition-colors"
-                        onClick={() => setPurchaseType("Retail")}
-                      >
-                        <CardContent className="flex flex-col items-center justify-center py-8">
-                          <ClipboardList className="h-10 w-10 text-primary mb-3" />
-                          <span className="text-lg font-semibold">Retail</span>
-                          <span className="text-xs text-muted-foreground mt-1">Single day entry</span>
-                        </CardContent>
-                      </Card>
-                      <Card
-                        className="w-48 cursor-pointer border-2 hover:border-primary transition-colors"
-                        onClick={() => setPurchaseType("Bulk")}
-                      >
-                        <CardContent className="flex flex-col items-center justify-center py-8">
-                          <CalendarIcon className="h-10 w-10 text-primary mb-3" />
-                          <span className="text-lg font-semibold">Bulk</span>
-                          <span className="text-xs text-muted-foreground mt-1">Date range entry</span>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-                )}
-
-                {/* RETAIL FLOW */}
-                {purchaseType === "Retail" && (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => setPurchaseType(null)}>← Back</Button>
-                      <span className="text-sm font-medium text-muted-foreground">Retail Purchase</span>
-                    </div>
-
-                    {/* Selection Controls - without kg and Round */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Select Date</label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn("w-full justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 z-[200]" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={selectedDate}
-                              onSelect={setSelectedDate}
-                              disabled={(date) => isDateAlreadyUsed(date)}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Recipe Type</label>
-                        <Select value={selectedRecipeCode} onValueChange={setSelectedRecipeCode} disabled={!selectedDate || isLoadingData}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={isLoadingData ? "Loading..." : "Select recipe type"} />
-                          </SelectTrigger>
-                          <SelectContent className="z-[200] bg-popover">
-                            {recipeTypesData.map((recipe) => (
-                              <SelectItem key={recipe.recipe_code} value={recipe.recipe_code}>{recipe.recipe_type}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Total Daily Req (pck)</label>
-                        <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
-                          {isLoadingData ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="font-semibold text-lg">{totalDailyRequirement}</span>}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Recipe Types Table */}
-                    {selectedDate && recipeTypesData.length > 0 && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <div className="bg-muted/50 px-4 py-2">
-                          <h4 className="text-sm font-medium">Recipe Types for {format(selectedDate, "PPP")}</h4>
-                        </div>
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-muted/30">
-                              <TableHead>Recipe Type</TableHead>
-                              <TableHead className="text-right">Req Qty</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {recipeTypesData.map((recipe, index) => (
-                              <TableRow
-                                key={`${recipe.recipe_code}-${index}`}
-                                className={cn("cursor-pointer hover:bg-muted/50", selectedRecipeCode === recipe.recipe_code && "bg-primary/10")}
-                                onClick={() => setSelectedRecipeCode(recipe.recipe_code)}
-                              >
-                                <TableCell className="font-medium">{toProperCase(recipe.recipe_type)}</TableCell>
-                                <TableCell className="text-right">{recipe.req_qty || 0}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-
-                    {/* Items Table - Grouped by Category */}
-                    {recipeItems.length > 0 && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-muted/50">
-                              <TableHead className="w-12">
-                                <Checkbox checked={selectedItems.size === recipeItems.length && recipeItems.length > 0} onCheckedChange={toggleAllItems} />
-                              </TableHead>
-                              <TableHead>Item Name</TableHead>
-                              <TableHead>Category</TableHead>
-                              <TableHead>Unit</TableHead>
-                              <TableHead className="text-right">Req Qty</TableHead>
-                              <TableHead className="text-right">Total Qty</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {isLoadingItems ? (
-                              <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                            ) : (
-                              (() => {
-                                const grouped: Record<string, RecipeItem[]> = {};
-                                recipeItems.forEach((item) => {
-                                  const cat = item.cat_name || "Other";
-                                  if (!grouped[cat]) grouped[cat] = [];
-                                  grouped[cat].push(item);
-                                });
-                                const sortedCategories = Object.keys(grouped).sort();
-                                return sortedCategories.map((cat) => {
-                                  const catItems = grouped[cat].sort((a, b) => a.item_name.localeCompare(b.item_name));
-                                  return (
-                                    <React.Fragment key={cat}>
-                                      <TableRow className="bg-muted/30">
-                                        <TableCell colSpan={6} className="py-2 font-semibold text-sm text-primary">{toProperCase(cat)}</TableCell>
-                                      </TableRow>
-                                      {catItems.map((item) => (
-                                        <TableRow key={item.item_name}>
-                                          <TableCell>
-                                            <Checkbox checked={selectedItems.has(item.item_name)} onCheckedChange={() => toggleItemSelection(item.item_name)} />
-                                          </TableCell>
-                                          <TableCell className="font-medium">{toProperCase(item.item_name)}</TableCell>
-                                          <TableCell>{toProperCase(item.cat_name)}</TableCell>
-                                          <TableCell>{toProperCase(item.unit_short)}</TableCell>
-                                          <TableCell className="text-right">{item.req_qty}</TableCell>
-                                          <TableCell className="text-right font-semibold">{getMultipliedQty(item.req_qty)}</TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </React.Fragment>
-                                  );
-                                });
-                              })()
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-
-                    {/* Summary and Submit */}
-                    {recipeItems.length > 0 && (
-                      <div className="flex items-center justify-between pt-4 border-t">
-                        <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">
-                            Selected Items: <span className="font-medium text-foreground">{selectedItems.size}</span> of {recipeItems.length}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Selected Quantity Total: <span className="font-semibold text-lg text-foreground">{selectedItemsTotal}</span>
-                            {" / "}
-                            <span className="font-semibold text-lg text-primary">{totalDailyRequirement}</span>
-                          </p>
-                        </div>
-                        <Button onClick={handleRetailSubmit} disabled={isSubmitting || selectedItems.size === 0 || !selectedDate || !selectedRecipeCode} className="gap-2">
-                          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                          Save Requirements
-                        </Button>
-                      </div>
-                    )}
-
-                    {!isLoadingData && selectedDate && recipeTypesData.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">No recipe data found for the selected date</div>
-                    )}
-
-                    {!isLoadingItems && recipeItems.length === 0 && selectedRecipeCode && (
-                      <div className="text-center py-8 text-muted-foreground">No items found for the selected recipe type</div>
-                    )}
-                  </div>
-                )}
-
-                {/* BULK FLOW */}
-                {purchaseType === "Bulk" && (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => setPurchaseType(null)}>← Back</Button>
-                      <span className="text-sm font-medium text-muted-foreground">Bulk Purchase</span>
-                    </div>
-
-                    {/* Date Range Pickers */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">From Date</label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn("w-full justify-start text-left font-normal", !bulkFromDate && "text-muted-foreground")}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {bulkFromDate ? format(bulkFromDate, "PPP") : "Select from date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 z-[200]" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={bulkFromDate}
-                              onSelect={(d) => {
-                                setBulkFromDate(d);
-                                if (bulkToDate && d && d > bulkToDate) setBulkToDate(undefined);
-                              }}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">To Date</label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn("w-full justify-start text-left font-normal", !bulkToDate && "text-muted-foreground")}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {bulkToDate ? format(bulkToDate, "PPP") : "Select to date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 z-[200]" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={bulkToDate}
-                              onSelect={setBulkToDate}
-                              disabled={(date) => bulkFromDate ? date < bulkFromDate : false}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-
-                    {/* Total Days Summary */}
-                    {bulkFromDate && bulkToDate && bulkTotalDays > 0 && (
-                      <div className="rounded-lg border bg-muted/50 px-4 py-3">
-                        <p className="text-sm font-medium">
-                          From: <span className="text-primary">{format(bulkFromDate, "dd/MM/yyyy")}</span>
-                          {" to: "}
-                          <span className="text-primary">{format(bulkToDate, "dd/MM/yyyy")}</span>
-                          {" | "}
-                          Total Days: <span className="text-lg font-bold text-primary">{bulkTotalDays}</span>
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Bulk Items Table */}
-                    {isLoadingBulkItems && (
-                      <div className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
-                    )}
-
-                    {!isLoadingBulkItems && bulkItems.length > 0 && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-muted/50">
-                              <TableHead>Item Name</TableHead>
-                              <TableHead>Category</TableHead>
-                              <TableHead>Unit</TableHead>
-                              <TableHead className="text-right">Req Qty</TableHead>
-                              <TableHead className="text-right">Total Qty</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {bulkItems.map((item, index) => (
-                              <TableRow key={`${item.item_code}-${index}`}>
-                                <TableCell className="font-medium">{toProperCase(item.item_name)}</TableCell>
-                                <TableCell>{toProperCase(item.cat_name)}</TableCell>
-                                <TableCell>{toProperCase(item.unit_short)}</TableCell>
-                                <TableCell className="text-right">{item.req_qty}</TableCell>
-                                <TableCell className="text-right font-semibold">
-                                  {(Number(item.req_qty) || 0) * bulkTotalDays}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-
-                    {!isLoadingBulkItems && bulkFromDate && bulkToDate && bulkItems.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">No bulk items found</div>
-                    )}
-
-                    {/* Save Button */}
-                    {bulkItems.length > 0 && (
-                      <div className="flex justify-end pt-4 border-t">
-                        <Button onClick={handleBulkSubmit} disabled={isSubmittingBulk || !bulkFromDate || !bulkToDate} className="gap-2">
-                          {isSubmittingBulk ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                          Save Bulk Requirements
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </DialogContent>
-            </Dialog>
+            <div>
+              <CardTitle className="text-xl">Day Requirements</CardTitle>
+              <CardDescription>Plan daily ingredient requirements based on recipes</CardDescription>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          {/* Search Filter */}
-          <div className="mb-4">
-            <div className="relative w-full max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search requirements..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
-            </div>
-          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <div className="flex items-center justify-between mb-4">
+              <TabsList>
+                <TabsTrigger value="retail">Retail</TabsTrigger>
+                <TabsTrigger value="bulk">Bulk</TabsTrigger>
+              </TabsList>
 
-          {/* Existing Requirements Table */}
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Date</TableHead>
-                  <TableHead>Purchase Type</TableHead>
-                  <TableHead>Recipe Type</TableHead>
-                  <TableHead className="text-right">Total Daily Req</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoadingExisting ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                ) : filteredRequirements.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No day requirements found</TableCell></TableRow>
-                ) : (
-                  filteredRequirements.map((req, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{formatDateForTable(req.day_req_date)}</TableCell>
-                      <TableCell>
-                        <span className={cn(
-                          "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                          req.purc_type === "Bulk" ? "bg-accent text-accent-foreground" : "bg-primary/10 text-primary"
-                        )}>
-                          {req.purc_type || "Retail"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="font-medium">{toProperCase(req.recipe_type || "-")}</TableCell>
-                      <TableCell className="text-right">{req.day_tot_req || "-"}</TableCell>
-                      <TableCell>{toProperCase(req.created_by)}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleDownloadPdf(req, index)}
-                          disabled={downloadingIndex === index}
-                        >
-                          {downloadingIndex === index ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Download className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </TableCell>
+              <Dialog open={dialogOpen} onOpenChange={(open) => {
+                if (!open && formInteracted.current) {
+                  setShowCloseWarning(true);
+                  return;
+                }
+                if (open) formInteracted.current = false;
+                setDialogOpen(open);
+              }}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    {activeTab === "retail" ? "Add Day Requirement - Retail" : "Add Day Requirement - Bulk"}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent
+                  className="sm:max-w-4xl max-h-[90vh] overflow-y-auto"
+                  onInteractOutside={(e) => e.preventDefault()}
+                  onEscapeKeyDown={(e) => e.preventDefault()}
+                >
+                  <DialogHeader>
+                    <DialogTitle>{dialogTitle}</DialogTitle>
+                  </DialogHeader>
+
+                  {/* RETAIL DIALOG */}
+                  {activeTab === "retail" && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Select Date</label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 z-[200]" align="start">
+                              <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={(date) => isDateAlreadyUsed(date)} initialFocus className="p-3 pointer-events-auto" />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Recipe Type</label>
+                          <Select value={selectedRecipeCode} onValueChange={setSelectedRecipeCode} disabled={!selectedDate || isLoadingData}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={isLoadingData ? "Loading..." : "Select recipe type"} />
+                            </SelectTrigger>
+                            <SelectContent className="z-[200] bg-popover">
+                              {recipeTypesData.map((recipe) => (
+                                <SelectItem key={recipe.recipe_code} value={recipe.recipe_code}>{recipe.recipe_type}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Total Daily Req (pck)</label>
+                          <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
+                            {isLoadingData ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="font-semibold text-lg">{totalDailyRequirement}</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Recipe Types Table */}
+                      {selectedDate && recipeTypesData.length > 0 && (
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="bg-muted/50 px-4 py-2">
+                            <h4 className="text-sm font-medium">Recipe Types for {format(selectedDate, "PPP")}</h4>
+                          </div>
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/30">
+                                <TableHead>Recipe Type</TableHead>
+                                <TableHead className="text-right">Req Qty</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {recipeTypesData.map((recipe, index) => (
+                                <TableRow
+                                  key={`${recipe.recipe_code}-${index}`}
+                                  className={cn("cursor-pointer hover:bg-muted/50", selectedRecipeCode === recipe.recipe_code && "bg-primary/10")}
+                                  onClick={() => setSelectedRecipeCode(recipe.recipe_code)}
+                                >
+                                  <TableCell className="font-medium">{toProperCase(recipe.recipe_type)}</TableCell>
+                                  <TableCell className="text-right">{recipe.req_qty || 0}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+
+                      {/* Items Table */}
+                      {recipeItems.length > 0 && (
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/50">
+                                <TableHead className="w-12">
+                                  <Checkbox checked={selectedItems.size === recipeItems.length && recipeItems.length > 0} onCheckedChange={toggleAllItems} />
+                                </TableHead>
+                                <TableHead>Item Name</TableHead>
+                                <TableHead>Category</TableHead>
+                                <TableHead>Unit</TableHead>
+                                <TableHead className="text-right">Req Qty</TableHead>
+                                <TableHead className="text-right">Total Qty</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {isLoadingItems ? (
+                                <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                              ) : (
+                                (() => {
+                                  const grouped: Record<string, RecipeItem[]> = {};
+                                  recipeItems.forEach((item) => {
+                                    const cat = item.cat_name || "Other";
+                                    if (!grouped[cat]) grouped[cat] = [];
+                                    grouped[cat].push(item);
+                                  });
+                                  const sortedCategories = Object.keys(grouped).sort();
+                                  return sortedCategories.map((cat) => {
+                                    const catItems = grouped[cat].sort((a, b) => a.item_name.localeCompare(b.item_name));
+                                    return (
+                                      <React.Fragment key={cat}>
+                                        <TableRow className="bg-muted/30">
+                                          <TableCell colSpan={6} className="py-2 font-semibold text-sm text-primary">{toProperCase(cat)}</TableCell>
+                                        </TableRow>
+                                        {catItems.map((item) => (
+                                          <TableRow key={item.item_name}>
+                                            <TableCell>
+                                              <Checkbox checked={selectedItems.has(item.item_name)} onCheckedChange={() => toggleItemSelection(item.item_name)} />
+                                            </TableCell>
+                                            <TableCell className="font-medium">{toProperCase(item.item_name)}</TableCell>
+                                            <TableCell>{toProperCase(item.cat_name)}</TableCell>
+                                            <TableCell>{toProperCase(item.unit_short)}</TableCell>
+                                            <TableCell className="text-right">{item.req_qty}</TableCell>
+                                            <TableCell className="text-right font-semibold">{selectedItems.has(item.item_name) ? getMultipliedQty(item.req_qty) : ""}</TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </React.Fragment>
+                                    );
+                                  });
+                                })()
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+
+                      {/* Summary and Submit */}
+                      {recipeItems.length > 0 && (
+                        <div className="flex items-center justify-between pt-4 border-t">
+                          <div className="space-y-1">
+                            <p className="text-sm text-muted-foreground">
+                              Selected Items: <span className="font-medium text-foreground">{selectedItems.size}</span> of {recipeItems.length}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Selected Quantity Total: <span className="font-semibold text-lg text-foreground">{selectedItemsTotal}</span>
+                              {" / "}
+                              <span className="font-semibold text-lg text-primary">{totalDailyRequirement}</span>
+                            </p>
+                          </div>
+                          <Button onClick={handleRetailSubmit} disabled={isSubmitting || selectedItems.size === 0 || !selectedDate || !selectedRecipeCode} className="gap-2">
+                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Save Requirements
+                          </Button>
+                        </div>
+                      )}
+
+                      {!isLoadingData && selectedDate && recipeTypesData.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">No recipe data found for the selected date</div>
+                      )}
+                      {!isLoadingItems && recipeItems.length === 0 && selectedRecipeCode && (
+                        <div className="text-center py-8 text-muted-foreground">No items found for the selected recipe type</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* BULK DIALOG */}
+                  {activeTab === "bulk" && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">From Date</label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !bulkFromDate && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {bulkFromDate ? format(bulkFromDate, "PPP") : "Select from date"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 z-[200]" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={bulkFromDate}
+                                onSelect={(d) => {
+                                  setBulkFromDate(d);
+                                  if (bulkToDate && d && d > bulkToDate) setBulkToDate(undefined);
+                                }}
+                                initialFocus
+                                className="p-3 pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">To Date</label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !bulkToDate && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {bulkToDate ? format(bulkToDate, "PPP") : "Select to date"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 z-[200]" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={bulkToDate}
+                                onSelect={setBulkToDate}
+                                disabled={(date) => bulkFromDate ? date < bulkFromDate : false}
+                                initialFocus
+                                className="p-3 pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+
+                      {bulkFromDate && bulkToDate && bulkTotalDays > 0 && (
+                        <div className="rounded-lg border bg-muted/50 px-4 py-3">
+                          <p className="text-sm font-medium">
+                            From: <span className="text-primary">{format(bulkFromDate, "dd/MM/yyyy")}</span>
+                            {" to: "}
+                            <span className="text-primary">{format(bulkToDate, "dd/MM/yyyy")}</span>
+                            {" | "}
+                            Total Days: <span className="text-lg font-bold text-primary">{bulkTotalDays}</span>
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Bulk Items Table with selection */}
+                      {isLoadingBulkItems && (
+                        <div className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
+                      )}
+
+                      {!isLoadingBulkItems && bulkItems.length > 0 && (
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/50">
+                                <TableHead className="w-12">
+                                  <Checkbox checked={selectedBulkItems.size === bulkItems.length && bulkItems.length > 0} onCheckedChange={toggleAllBulkItems} />
+                                </TableHead>
+                                <TableHead>Item Name</TableHead>
+                                <TableHead>Category</TableHead>
+                                <TableHead>Unit</TableHead>
+                                <TableHead className="text-right">Req Qty</TableHead>
+                                <TableHead className="text-right">Total Qty</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {bulkItems.map((item, index) => (
+                                <TableRow key={`${item.item_code}-${index}`}>
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={selectedBulkItems.has(item.item_name)}
+                                      onCheckedChange={() => toggleBulkItemSelection(item.item_name)}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="font-medium">{toProperCase(item.item_name)}</TableCell>
+                                  <TableCell>{toProperCase(item.cat_name)}</TableCell>
+                                  <TableCell>{toProperCase(item.unit_short)}</TableCell>
+                                  <TableCell className="text-right">{item.req_qty}</TableCell>
+                                  <TableCell className="text-right font-semibold">
+                                    {selectedBulkItems.has(item.item_name) ? (Number(item.req_qty) || 0) * bulkTotalDays : ""}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+
+                      {!isLoadingBulkItems && bulkFromDate && bulkToDate && bulkItems.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">No bulk items found</div>
+                      )}
+
+                      {/* Save Button */}
+                      {bulkItems.length > 0 && (
+                        <div className="flex items-center justify-between pt-4 border-t">
+                          <p className="text-sm text-muted-foreground">
+                            Selected Items: <span className="font-medium text-foreground">{selectedBulkItems.size}</span> of {bulkItems.length}
+                          </p>
+                          <Button onClick={handleBulkSubmit} disabled={isSubmittingBulk || !bulkFromDate || !bulkToDate || selectedBulkItems.size === 0} className="gap-2">
+                            {isSubmittingBulk ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Save Bulk Requirements
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {/* RETAIL TAB CONTENT */}
+            <TabsContent value="retail">
+              <div className="mb-4">
+                <div className="relative w-full max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search retail requirements..."
+                    value={retailSearch}
+                    onChange={(e) => setRetailSearch(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
+                </div>
+              </div>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Date</TableHead>
+                      <TableHead>Purchase Type</TableHead>
+                      <TableHead>Recipe Type</TableHead>
+                      <TableHead className="text-right">Total Daily Req</TableHead>
+                      <TableHead>Created By</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingRetail ? (
+                      <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                    ) : filteredRetail.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No retail requirements found</TableCell></TableRow>
+                    ) : (
+                      filteredRetail.map((req, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{formatDateForTable(req.day_req_date)}</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary">
+                              {req.purc_type || "Retail"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-medium">{toProperCase(req.recipe_type || "-")}</TableCell>
+                          <TableCell className="text-right">{req.day_tot_req || "-"}</TableCell>
+                          <TableCell>{toProperCase(req.created_by)}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadPdf(req, index)} disabled={downloadingIndex === index}>
+                              {downloadingIndex === index ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
+            {/* BULK TAB CONTENT */}
+            <TabsContent value="bulk">
+              <div className="mb-4">
+                <div className="relative w-full max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search bulk requirements..."
+                    value={bulkSearch}
+                    onChange={(e) => setBulkSearch(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
+                </div>
+              </div>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Date</TableHead>
+                      <TableHead>Purchase Type</TableHead>
+                      <TableHead>Created By</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingBulk ? (
+                      <TableRow><TableCell colSpan={3} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                    ) : filteredBulk.length === 0 ? (
+                      <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No bulk requirements found</TableCell></TableRow>
+                    ) : (
+                      filteredBulk.map((req, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{formatDateForTable(req.day_req_date)}</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-accent text-accent-foreground">
+                              {req.purc_type || "Bulk"}
+                            </span>
+                          </TableCell>
+                          <TableCell>{toProperCase(req.created_by)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -940,9 +955,7 @@ const DayRequirementsPage: React.FC = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes. Do you want to close the form without saving?
-            </AlertDialogDescription>
+            <AlertDialogDescription>You have unsaved changes. Do you want to close the form without saving?</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>No</AlertDialogCancel>
