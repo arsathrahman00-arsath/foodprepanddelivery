@@ -432,18 +432,32 @@ const DayRequirementsPage: React.FC = () => {
       const datesArray = dateRange.map(d => format(d, "yyyy-MM-dd"));
       const createdBy = user?.user_name || "";
 
-      // Send requests sequentially to avoid duplicate batch IDs
+      // Step 1: Create header with all dates to get purc_id
+      const headerResponse = await bulkRequirementApi.createHeader({
+        day_req_date: JSON.stringify(datesArray),
+        purc_type: "Bulk",
+        created_by: createdBy,
+      });
+
+      if (headerResponse.status !== "success" || !headerResponse.data?.purc_id) {
+        throw new Error(headerResponse.message || "Failed to create bulk header");
+      }
+
+      const purcId = String(headerResponse.data.purc_id);
+
+      // Step 2: Create transaction records sequentially for each item × date
       for (const item of bulkItems) {
         for (const date of datesArray) {
-          await bulkRequirementApi.create({
-            dates: date,
+          await bulkRequirementApi.createTransaction({
+            purc_id: purcId,
+            day_req_date: date,
             recipe_code: String(item.item_code || ""),
             item_name: item.item_name,
             cat_name: item.cat_name,
             unit_short: item.unit_short,
             day_req_qty: String(item.req_qty),
-            purc_type: "Bulk",
             created_by: createdBy,
+            purc_type: "Bulk",
           });
         }
       }
