@@ -439,17 +439,18 @@ const DayRequirementsPage: React.FC = () => {
         created_by: createdBy,
       });
 
-      if (headerResponse.status !== "success" || !headerResponse.data?.purc_id) {
+      const purcId = headerResponse.data?.purc_id ?? (headerResponse as any).purc_id;
+      if (headerResponse.status !== "success" || !purcId) {
         throw new Error(headerResponse.message || "Failed to create bulk header");
       }
 
-      const purcId = String(headerResponse.data.purc_id);
+      const purcIdStr = String(purcId);
 
       // Step 2: Create transaction records sequentially for each item × date
       for (const item of bulkItems) {
         for (const date of datesArray) {
           await bulkRequirementApi.createTransaction({
-            purc_id: purcId,
+            purc_id: purcIdStr,
             day_req_date: date,
             recipe_code: String(item.item_code || ""),
             item_name: item.item_name,
