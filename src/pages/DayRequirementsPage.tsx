@@ -114,6 +114,7 @@ const DayRequirementsPage: React.FC = () => {
   const [bulkItems, setBulkItems] = useState<BulkItem[]>([]);
   const [isLoadingBulkItems, setIsLoadingBulkItems] = useState(false);
   const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
+  const bulkSubmitLock = useRef(false);
 
   const bulkTotalDays = bulkFromDate && bulkToDate
     ? differenceInCalendarDays(bulkToDate, bulkFromDate) + 1
@@ -395,39 +396,46 @@ const DayRequirementsPage: React.FC = () => {
       return;
     }
 
+    let cancelled = false;
     const fetchBulkItems = async () => {
       setIsLoadingBulkItems(true);
       try {
         const response = await bulkItemApi.getAll();
-        if (response.status === "success" && response.data) {
+        if (!cancelled && response.status === "success" && response.data) {
           setBulkItems(Array.isArray(response.data) ? response.data : []);
         }
       } catch (error) {
-        console.error("Failed to fetch bulk items:", error);
-        toast({ title: "Error", description: "Failed to load bulk items", variant: "destructive" });
+        if (!cancelled) {
+          console.error("Failed to fetch bulk items:", error);
+          toast({ title: "Error", description: "Failed to load bulk items", variant: "destructive" });
+        }
       } finally {
-        setIsLoadingBulkItems(false);
+        if (!cancelled) setIsLoadingBulkItems(false);
       }
     };
 
     fetchBulkItems();
+    return () => { cancelled = true; };
   }, [bulkFromDate, bulkToDate, purchaseType]);
 
   const handleBulkSubmit = async () => {
+    if (bulkSubmitLock.current) return;
     if (!bulkFromDate || !bulkToDate || bulkItems.length === 0) {
       toast({ title: "Validation Error", description: "Please select dates and ensure items are loaded", variant: "destructive" });
       return;
     }
 
+    bulkSubmitLock.current = true;
     setIsSubmittingBulk(true);
     try {
       const dateRange = eachDayOfInterval({ start: bulkFromDate, end: bulkToDate });
       const datesArray = dateRange.map(d => format(d, "yyyy-MM-dd"));
       const createdBy = user?.user_name || "";
 
-      const requests = bulkItems.flatMap(item =>
-        datesArray.map(date =>
-          bulkRequirementApi.create({
+      // Send requests sequentially to avoid duplicate batch IDs
+      for (const item of bulkItems) {
+        for (const date of datesArray) {
+          await bulkRequirementApi.create({
             dates: date,
             recipe_code: String(item.item_code || ""),
             item_name: item.item_name,
@@ -436,10 +444,9 @@ const DayRequirementsPage: React.FC = () => {
             day_req_qty: String(item.req_qty),
             purc_type: "Bulk",
             created_by: createdBy,
-          })
-        )
-      );
-      await Promise.all(requests);
+          });
+        }
+      }
 
       toast({ title: "Success", description: "Bulk requirements saved successfully" });
       formInteracted.current = false;
@@ -451,6 +458,7 @@ const DayRequirementsPage: React.FC = () => {
       toast({ title: "Error", description: "Failed to save bulk requirements", variant: "destructive" });
     } finally {
       setIsSubmittingBulk(false);
+      bulkSubmitLock.current = false;
     }
   };
 
