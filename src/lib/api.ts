@@ -396,7 +396,7 @@ export const supplierRequisitionApi = {
 
 // Bulk Day Requirements API endpoints
 export const bulkItemApi = {
-  getAll: () => getData("/getbulkitem/"),
+  getAll: (fromDate: string, toDate: string) => postFormData("/getbulkitem/", { from_date: fromDate, to_date: toDate }),
 };
 
 export const bulkRequirementApi = {
