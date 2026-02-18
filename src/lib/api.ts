@@ -390,6 +390,15 @@ export const supplierRequisitionApi = {
     postFormData("/get_supplier_category/", { cat_code }),
 };
 
+// Bulk Day Requirements API endpoints
+export const bulkItemApi = {
+  getAll: () => getData("/getbulkitem/"),
+};
+
+export const bulkRequirementApi = {
+  create: (data: Record<string, string>) => postFormData("/bulk_requirment/", data),
+};
+
 // Material Receipt API endpoints
 export const materialReceiptApi = {
   getSuppliers: () => getData("/get_suppliername/"),
