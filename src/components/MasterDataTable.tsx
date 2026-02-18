@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Plus, RefreshCw, AlertCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { Plus, RefreshCw, AlertCircle, MoreHorizontal, Pencil, Trash2, Search } from "lucide-react";
 import { toProperCase, formatDateForTable } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,6 +95,20 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
   // Delete state
   const [deleteRow, setDeleteRow] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Search filter
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredData = useMemo(() => {
+    if (!searchQuery.trim()) return data;
+    const q = searchQuery.toLowerCase();
+    return data.filter((row) =>
+      columns.some((col) => {
+        const val = row[col.key];
+        return val && String(val).toLowerCase().includes(q);
+      })
+    );
+  }, [data, searchQuery, columns]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -237,9 +251,21 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
 
       <Card>
         <CardHeader className="py-4">
-          <CardTitle className="text-base font-medium">
-            {title} Records ({data.length})
-          </CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-base font-medium">
+              {title} Records ({filteredData.length})
+            </CardTitle>
+            <div className="relative w-full max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search records..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -254,7 +280,7 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
               <p className="text-muted-foreground mb-4">{error}</p>
               <Button variant="outline" onClick={loadData}>Try Again</Button>
             </div>
-          ) : data.length === 0 ? (
+          ) : filteredData.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-muted-foreground mb-4">No records found</p>
               <Button onClick={() => setIsModalOpen(true)} className="bg-gradient-warm hover:opacity-90 gap-2">
@@ -275,7 +301,7 @@ const MasterDataTable: React.FC<MasterDataTableProps> = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.map((row, index) => (
+                  {filteredData.map((row, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
                       {columns.map((col) => (
