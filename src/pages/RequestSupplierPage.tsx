@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { cn, toProperCase } from "@/lib/utils";
-import { dayRequirementsApi, materialReceiptApi, itemCategoryApi, supplierRequisitionApi } from "@/lib/api";
+import { dayRequirementsApi, itemCategoryApi, supplierRequisitionApi } from "@/lib/api";
 import { generateSupplierReqPdf } from "@/lib/generateSupplierReqPdf";
 
 interface RecipeData {
@@ -49,27 +49,19 @@ const RequestSupplierPage: React.FC = () => {
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Fetch suppliers and categories on mount
+  // Fetch categories on mount
   useEffect(() => {
-    const fetchDropdowns = async () => {
+    const fetchCategories = async () => {
       try {
-        const [supRes, catRes] = await Promise.all([
-          materialReceiptApi.getSuppliers(),
-          itemCategoryApi.getAll(),
-        ]);
-        if (supRes.status === "success" && supRes.data) {
-          setSuppliers(
-            Array.isArray(supRes.data) ? supRes.data.map((s: any) => s.sup_name || s) : []
-          );
-        }
+        const catRes = await itemCategoryApi.getAll();
         if (catRes.status === "success" && catRes.data) {
           setCategories(Array.isArray(catRes.data) ? catRes.data : []);
         }
       } catch (error) {
-        console.error("Failed to fetch dropdowns:", error);
+        console.error("Failed to fetch categories:", error);
       }
     };
-    fetchDropdowns();
+    fetchCategories();
   }, []);
 
   // Fetch recipe types when date changes
@@ -106,6 +98,37 @@ const RequestSupplierPage: React.FC = () => {
     };
     fetchRecipes();
   }, [selectedDate]);
+
+  // Fetch suppliers when category changes
+  useEffect(() => {
+    setSelectedSupplier("");
+    setSuppliers([]);
+    if (!selectedCatCode) return;
+    const fetchSuppliersByCategory = async () => {
+      try {
+        const response = await supplierRequisitionApi.getSuppliersByCategory(selectedCatCode);
+        const res = response as any;
+        if (response.status === "success" && res.sup_name) {
+          setSuppliers(
+            Array.isArray(res.sup_name)
+              ? res.sup_name
+              : [res.sup_name]
+          );
+        } else if (response.status === "success" && response.data) {
+          const names = Array.isArray(response.data)
+            ? response.data.map((s: any) => s.sup_name || s)
+            : [];
+          setSuppliers(names);
+        } else {
+          setSuppliers([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch suppliers by category:", error);
+        setSuppliers([]);
+      }
+    };
+    fetchSuppliersByCategory();
+  }, [selectedCatCode]);
 
   // Clear items when filters change
   useEffect(() => {
