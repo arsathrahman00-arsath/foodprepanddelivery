@@ -396,7 +396,23 @@ export const bulkItemApi = {
 };
 
 export const bulkRequirementApi = {
-  create: (data: Record<string, string>) => postFormData("/bulk_requirment/", data),
+  createHeader: (data: {
+    day_req_date: string;
+    purc_type: string;
+    created_by: string;
+  }) => postFormData("/bulk_requirment_hd/", data),
+
+  createTransaction: (data: {
+    purc_id: string;
+    day_req_date: string;
+    recipe_code: string;
+    item_name: string;
+    cat_name: string;
+    unit_short: string;
+    day_req_qty: string;
+    created_by: string;
+    purc_type: string;
+  }) => postFormData("/bulk_requirment_tr/", data),
 };
 
 // Material Receipt API endpoints
