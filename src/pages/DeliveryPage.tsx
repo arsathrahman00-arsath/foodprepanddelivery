@@ -140,10 +140,13 @@ const DeliveryPage: React.FC = () => {
     if (selectedMasjid) {
       setDeliveryTime(format(new Date(), "HH:mm:ss"));
       const found = masjidList.find(m => m.masjid_name === selectedMasjid);
-      setAllocatedQty(found ? found.alloc_qty : 0);
+      const qty = found ? found.alloc_qty : 0;
+      setAllocatedQty(qty);
+      setDeliveryQty(qty > 0 ? String(qty) : "");
     } else {
       setDeliveryTime("");
       setAllocatedQty(0);
+      setDeliveryQty("");
     }
   }, [selectedMasjid, masjidList]);
 
