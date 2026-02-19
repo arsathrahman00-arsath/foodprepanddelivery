@@ -84,16 +84,21 @@ const MaterialReceiptPage: React.FC = () => {
       setSupplierName("");
       try {
         const response = await materialReceiptApi.getSuppliersByCategory(selectedCatCode);
-        if (response.status === "success" && response.data) {
-          // data could be a string sup_name or an object/array
-          const data = response.data;
+        if (response.status === "success") {
           const names: string[] = [];
-          if (typeof data === "string") {
-            names.push(data);
-          } else if (Array.isArray(data)) {
-            data.forEach((d: any) => { if (d.sup_name) names.push(d.sup_name); });
-          } else if (data.sup_name) {
-            names.push(data.sup_name);
+          // sup_name can be at top level or inside data
+          const topSupName = (response as any).sup_name;
+          const data = response.data;
+          if (topSupName) {
+            names.push(topSupName);
+          } else if (data) {
+            if (typeof data === "string") {
+              names.push(data);
+            } else if (Array.isArray(data)) {
+              data.forEach((d: any) => { if (d.sup_name) names.push(d.sup_name); });
+            } else if (data.sup_name) {
+              names.push(data.sup_name);
+            }
           }
           setSupplierOptions(names);
           if (names.length === 1) setSupplierName(names[0]);
