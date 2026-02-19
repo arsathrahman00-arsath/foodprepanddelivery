@@ -279,7 +279,7 @@ const MaterialReceiptPage: React.FC = () => {
     const formattedPurchaseReqDate = format(purchaseReqDate, "yyyy-MM-dd");
 
     try {
-      await Promise.all(
+      const results = await Promise.allSettled(
         allValidItems.map(({ tab, item }) =>
           materialReceiptApi.create({
             mat_rec_date: formattedReceiptDate,
@@ -294,11 +294,52 @@ const MaterialReceiptPage: React.FC = () => {
         )
       );
 
-      toast({ title: "Success", description: `${allValidItems.length} material receipt(s) saved successfully` });
-      setPurchaseReqDate(undefined);
-      setPurchaseType("");
-      setCategoryTabs([]);
-      setActiveTabId("");
+      const duplicates: string[] = [];
+      let successCount = 0;
+      let otherErrors: string[] = [];
+
+      results.forEach((result, idx) => {
+        if (result.status === "fulfilled") {
+          const res = result.value;
+          if (res.status === "error") {
+            const itemName = allValidItems[idx].item.item_name;
+            if (res.message?.toLowerCase().includes("already exists")) {
+              duplicates.push(itemName);
+            } else {
+              otherErrors.push(`${itemName}: ${res.message}`);
+            }
+          } else {
+            successCount++;
+          }
+        } else {
+          otherErrors.push(allValidItems[idx].item.item_name);
+        }
+      });
+
+      if (successCount > 0) {
+        toast({ title: "Success", description: `${successCount} material receipt(s) saved successfully` });
+      }
+      if (duplicates.length > 0) {
+        toast({
+          title: "Duplicate Entries",
+          description: `Already exists: ${duplicates.join(", ")}`,
+          variant: "destructive",
+        });
+      }
+      if (otherErrors.length > 0) {
+        toast({
+          title: "Some Items Failed",
+          description: otherErrors.join("; "),
+          variant: "destructive",
+        });
+      }
+
+      if (successCount > 0 && duplicates.length === 0 && otherErrors.length === 0) {
+        setPurchaseReqDate(undefined);
+        setPurchaseType("");
+        setCategoryTabs([]);
+        setActiveTabId("");
+      }
     } catch (error) {
       console.error("Failed to save material receipts:", error);
       toast({ title: "Error", description: "Failed to save material receipts", variant: "destructive" });
