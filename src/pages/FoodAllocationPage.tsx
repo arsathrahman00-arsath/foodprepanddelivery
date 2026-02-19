@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, Plus, Save, Utensils } from "lucide-react";
+import { CalendarIcon, Download, Loader2, Plus, Save, Utensils } from "lucide-react";
+import { generateAllocationPdf } from "@/lib/generateAllocationPdf";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ const FoodAllocationPage: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
   const formInteracted = useRef(false);
+  const [filterDate, setFilterDate] = useState<Date | undefined>();
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [isLoadingDateData, setIsLoadingDateData] = useState(false);
@@ -88,6 +90,10 @@ const FoodAllocationPage: React.FC = () => {
   };
 
   useEffect(() => { fetchRecords(); }, []);
+
+  const filteredRecords = filterDate
+    ? records.filter(r => r.alloc_date.split("T")[0] === format(filterDate, "yyyy-MM-dd"))
+    : records;
 
 
 
@@ -367,6 +373,33 @@ const FoodAllocationPage: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="flex items-center gap-3 mb-4">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-[200px] justify-start text-left font-normal", !filterDate && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filterDate ? format(filterDate, "PPP") : "Filter by date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-[200]" align="start">
+                <Calendar mode="single" selected={filterDate} onSelect={setFilterDate} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            {filterDate && (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => setFilterDate(undefined)}>Clear</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 ml-auto"
+                  onClick={() => generateAllocationPdf(records as any, format(filterDate, "yyyy-MM-dd"))}
+                  disabled={filteredRecords.length === 0}
+                >
+                  <Download className="h-4 w-4" /> Download PDF
+                </Button>
+              </>
+            )}
+          </div>
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
@@ -383,10 +416,10 @@ const FoodAllocationPage: React.FC = () => {
               <TableBody>
                 {isLoadingRecords ? (
                   <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                ) : records.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No allocation records found</TableCell></TableRow>
+                ) : filteredRecords.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{filterDate ? "No records for selected date" : "No allocation records found"}</TableCell></TableRow>
                 ) : (
-                  records.map((record, index) => (
+                  filteredRecords.map((record, index) => (
                     <TableRow key={index}>
                       <TableCell>{formatDateForTable(record.alloc_date)}</TableCell>
                       <TableCell className="font-medium">{toProperCase(record.masjid_name)}</TableCell>
