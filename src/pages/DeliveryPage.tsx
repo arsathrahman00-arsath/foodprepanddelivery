@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronsUpDown, Loader2, Plus, Save, Truck } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, Download, Loader2, Plus, Save, Truck, X } from "lucide-react";
+import { generateDeliveryPdf } from "@/lib/generateDeliveryPdf";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ const DeliveryPage: React.FC = () => {
 
   const [records, setRecords] = useState<DeliveryRecord[]>([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
+  const [filterDate, setFilterDate] = useState<Date | undefined>();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
@@ -321,6 +323,33 @@ const DeliveryPage: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="flex items-center gap-2 mb-4">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-[220px] justify-start text-left font-normal", !filterDate && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filterDate ? format(filterDate, "PPP") : "Filter by date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={filterDate} onSelect={setFilterDate} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            {filterDate && (
+              <Button variant="ghost" size="icon" onClick={() => setFilterDate(undefined)}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+            {filterDate && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => generateDeliveryPdf(format(filterDate, "yyyy-MM-dd"), records)}
+              >
+                <Download className="h-4 w-4" /> Download PDF
+              </Button>
+            )}
+          </div>
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
@@ -334,10 +363,14 @@ const DeliveryPage: React.FC = () => {
               <TableBody>
                 {isLoadingRecords ? (
                   <TableRow><TableCell colSpan={4} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                ) : records.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No delivery records found</TableCell></TableRow>
-                ) : (
-                  records.map((record, index) => (
+                ) : (() => {
+                  const filtered = filterDate
+                    ? records.filter(r => r.delivery_date.split("T")[0] === format(filterDate, "yyyy-MM-dd"))
+                    : records;
+                  return filtered.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No delivery records found</TableCell></TableRow>
+                  ) : (
+                    filtered.map((record, index) => (
                     <TableRow key={index}>
                       <TableCell>{formatDateForTable(record.delivery_date)}</TableCell>
                       <TableCell className="font-medium">{record.location}</TableCell>
@@ -345,7 +378,8 @@ const DeliveryPage: React.FC = () => {
                       <TableCell className="text-right">{record.delivery_qty}</TableCell>
                     </TableRow>
                   ))
-                )}
+                  );
+                })()}
               </TableBody>
             </Table>
           </div>
