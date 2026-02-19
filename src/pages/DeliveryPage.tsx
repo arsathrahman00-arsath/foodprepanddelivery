@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, Plus, Save, Truck } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, Loader2, Plus, Save, Truck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -38,6 +38,7 @@ interface MasjidInfo {
 }
 
 const DeliveryPage: React.FC = () => {
+  const [locationPopoverOpen, setLocationPopoverOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -235,14 +236,50 @@ const DeliveryPage: React.FC = () => {
                     <>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Location (Masjid)</label>
-                        <Select value={selectedMasjid} onValueChange={(v) => { setSelectedMasjid(v); formInteracted.current = true; }}>
-                          <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
-                          <SelectContent className="z-[200] bg-popover">
-                            {masjidList.map((m, i) => (
-                              <SelectItem key={i} value={m.masjid_name}>{m.masjid_name} (Req: {m.req_qty})</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={locationPopoverOpen}
+                              className={cn("w-full justify-between font-normal", !selectedMasjid && "text-muted-foreground")}
+                            >
+                              {selectedMasjid
+                                ? `${selectedMasjid} (Req: ${masjidList.find(m => m.masjid_name === selectedMasjid)?.req_qty ?? 0})`
+                                : "Search and select location..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0 z-[200]" align="start">
+                            <Command>
+                              <CommandInput placeholder="Search masjid..." />
+                              <CommandList>
+                                <CommandEmpty>No location found.</CommandEmpty>
+                                <CommandGroup>
+                                  {masjidList.map((m) => (
+                                    <CommandItem
+                                      key={m.masjid_name}
+                                      value={m.masjid_name}
+                                      onSelect={(val) => {
+                                        const found = masjidList.find(
+                                          (x) => x.masjid_name.toLowerCase() === val.toLowerCase()
+                                        );
+                                        if (found) {
+                                          setSelectedMasjid(found.masjid_name);
+                                          formInteracted.current = true;
+                                        }
+                                        setLocationPopoverOpen(false);
+                                      }}
+                                    >
+                                      <Check className={cn("mr-2 h-4 w-4", selectedMasjid === m.masjid_name ? "opacity-100" : "opacity-0")} />
+                                      {m.masjid_name} (Req: {m.req_qty})
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
 
                       <div className="space-y-2">
