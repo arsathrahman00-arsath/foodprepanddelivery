@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Package, Loader2, Trash2, Save } from "lucide-react";
+import { CalendarIcon, Package, Loader2, Trash2, Save, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { materialReceiptApi } from "@/lib/api";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, numericOnly, toProperCase } from "@/lib/utils";
 
 interface CategoryData {
@@ -26,6 +27,18 @@ interface ItemRow {
   received_qty: string;
 }
 
+interface CategoryTab {
+  id: string;
+  cat_name: string;
+  cat_code: string;
+  supplierName: string;
+  supplierOptions: string[];
+  supplierError: string;
+  isLoadingSupplier: boolean;
+  items: ItemRow[];
+  isLoadingItems: boolean;
+}
+
 const standardizeUnit = (unit: string): string => {
   if (!unit) return "";
   return unit.charAt(0).toUpperCase() + unit.slice(1).toLowerCase();
@@ -35,24 +48,18 @@ const MaterialReceiptPage: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Form fields
   const today = new Date();
   const [receiptDate] = useState<Date>(today);
   const [purchaseReqDate, setPurchaseReqDate] = useState<Date | undefined>();
   const [purchaseType, setPurchaseType] = useState<string>("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [selectedCatCode, setSelectedCatCode] = useState<string>("");
-  const [supplierName, setSupplierName] = useState<string>("");
 
-  const [supplierOptions, setSupplierOptions] = useState<string[]>([]);
   const [categories, setCategories] = useState<CategoryData[]>([]);
-  const [items, setItems] = useState<ItemRow[]>([]);
-
-  // Loading states
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-  const [isLoadingSupplier, setIsLoadingSupplier] = useState(false);
-  const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Multi-category tabs
+  const [categoryTabs, setCategoryTabs] = useState<CategoryTab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string>("");
 
   // Fetch categories on mount
   useEffect(() => {
@@ -72,97 +79,181 @@ const MaterialReceiptPage: React.FC = () => {
     fetchCategories();
   }, []);
 
-  // Fetch supplier when category changes
-  useEffect(() => {
-    if (!selectedCatCode) {
-      setSupplierName("");
-      setSupplierOptions([]);
-      return;
-    }
-    const fetchSupplier = async () => {
-      setIsLoadingSupplier(true);
-      setSupplierName("");
-      try {
-        const response = await materialReceiptApi.getSuppliersByCategory(selectedCatCode);
-        if (response.status === "success") {
-          const names: string[] = [];
-          // sup_name can be at top level or inside data
-          const topSupName = (response as any).sup_name;
-          const data = response.data;
-          if (topSupName) {
-            names.push(topSupName);
-          } else if (data) {
-            if (typeof data === "string") {
-              names.push(data);
-            } else if (Array.isArray(data)) {
-              data.forEach((d: any) => { if (d.sup_name) names.push(d.sup_name); });
-            } else if (data.sup_name) {
-              names.push(data.sup_name);
-            }
-          }
-          setSupplierOptions(names);
-          if (names.length === 1) setSupplierName(names[0]);
-        }
-      } catch (error) {
-        console.error("Failed to fetch supplier:", error);
-      } finally {
-        setIsLoadingSupplier(false);
-      }
-    };
-    fetchSupplier();
-  }, [selectedCatCode]);
+  // Categories already added as tabs
+  const usedCatCodes = useMemo(() => categoryTabs.map(t => t.cat_code), [categoryTabs]);
 
-  // Fetch items when purchase req date + purchase type + category are all set
-  useEffect(() => {
-    if (!purchaseReqDate || !purchaseType || !selectedCategory) {
-      setItems([]);
-      return;
-    }
-    const fetchItems = async () => {
-      setIsLoadingItems(true);
-      try {
-        const response = await materialReceiptApi.getItemsByDateAndCategory({
-          day_req_date: format(purchaseReqDate, "yyyy-MM-dd"),
-          purc_type: purchaseType,
-          cat_name: selectedCategory,
-        });
-        if (response.status === "success" && response.data) {
-          const rawItems = Array.isArray(response.data) ? response.data : [];
-          setItems(rawItems.map((item: any) => ({
-            item_name: item.item_name || "",
-            unit_short: standardizeUnit(item.unit_short || ""),
-            day_req_qty: String(item.day_req_qty || "0"),
-            received_qty: "",
-          })));
-        }
-      } catch (error) {
-        console.error("Failed to fetch items:", error);
-        setItems([]);
-      } finally {
-        setIsLoadingItems(false);
-      }
-    };
-    fetchItems();
-  }, [purchaseReqDate, purchaseType, selectedCategory]);
+  const availableCategories = useMemo(
+    () => categories.filter(c => !usedCatCodes.includes(c.cat_code)),
+    [categories, usedCatCodes]
+  );
 
-  const handleCategoryChange = (catName: string) => {
-    setSelectedCategory(catName);
+  const addCategoryTab = useCallback((catName: string) => {
     const cat = categories.find(c => c.cat_name === catName);
-    setSelectedCatCode(cat?.cat_code || "");
+    if (!cat) return;
+
+    const tabId = `tab-${cat.cat_code}-${Date.now()}`;
+    const newTab: CategoryTab = {
+      id: tabId,
+      cat_name: cat.cat_name,
+      cat_code: cat.cat_code,
+      supplierName: "",
+      supplierOptions: [],
+      supplierError: "",
+      isLoadingSupplier: true,
+      items: [],
+      isLoadingItems: false,
+    };
+
+    setCategoryTabs(prev => [...prev, newTab]);
+    setActiveTabId(tabId);
+
+    // Fetch supplier for this category
+    fetchSupplierForTab(tabId, cat.cat_code);
+  }, [categories]);
+
+  const fetchSupplierForTab = async (tabId: string, catCode: string) => {
+    try {
+      const response = await materialReceiptApi.getSuppliersByCategory(catCode);
+      const names: string[] = [];
+      let errorMsg = "";
+
+      if (response.status === "success") {
+        const topSupName = (response as any).sup_name;
+        const data = response.data;
+        if (topSupName) {
+          names.push(topSupName);
+        } else if (data) {
+          if (typeof data === "string") names.push(data);
+          else if (Array.isArray(data)) data.forEach((d: any) => { if (d.sup_name) names.push(d.sup_name); });
+          else if (data.sup_name) names.push(data.sup_name);
+        }
+      } else if (response.status === "error") {
+        errorMsg = (response as any).message || "Supplier not found for this category";
+      }
+
+      setCategoryTabs(prev => prev.map(tab =>
+        tab.id === tabId
+          ? {
+              ...tab,
+              supplierOptions: names,
+              supplierName: names.length === 1 ? names[0] : "",
+              supplierError: names.length === 0 && !errorMsg ? "No supplier found" : errorMsg,
+              isLoadingSupplier: false,
+            }
+          : tab
+      ));
+    } catch (error) {
+      console.error("Failed to fetch supplier:", error);
+      setCategoryTabs(prev => prev.map(tab =>
+        tab.id === tabId
+          ? { ...tab, isLoadingSupplier: false, supplierError: "Failed to fetch supplier" }
+          : tab
+      ));
+    }
   };
 
-  const updateReceivedQty = (index: number, value: string) => {
-    setItems(prev => prev.map((item, i) =>
-      i === index ? { ...item, received_qty: value } : item
+  // Fetch items when purchaseReqDate or purchaseType changes for all tabs
+  useEffect(() => {
+    if (!purchaseReqDate || !purchaseType) return;
+
+    categoryTabs.forEach(tab => {
+      if (tab.items.length === 0 && !tab.isLoadingItems) {
+        fetchItemsForTab(tab.id, tab.cat_name);
+      }
+    });
+  }, [purchaseReqDate, purchaseType]);
+
+  // Fetch items when a new tab is added and date+type are set
+  const fetchItemsForTab = async (tabId: string, catName: string) => {
+    if (!purchaseReqDate || !purchaseType) return;
+
+    setCategoryTabs(prev => prev.map(tab =>
+      tab.id === tabId ? { ...tab, isLoadingItems: true } : tab
+    ));
+
+    try {
+      const response = await materialReceiptApi.getItemsByDateAndCategory({
+        day_req_date: format(purchaseReqDate, "yyyy-MM-dd"),
+        purc_type: purchaseType,
+        cat_name: catName,
+      });
+      if (response.status === "success" && response.data) {
+        const rawItems = Array.isArray(response.data) ? response.data : [];
+        setCategoryTabs(prev => prev.map(tab =>
+          tab.id === tabId
+            ? {
+                ...tab,
+                items: rawItems.map((item: any) => ({
+                  item_name: item.item_name || "",
+                  unit_short: standardizeUnit(item.unit_short || ""),
+                  day_req_qty: String(item.day_req_qty || "0"),
+                  received_qty: "",
+                })),
+                isLoadingItems: false,
+              }
+            : tab
+        ));
+      }
+    } catch (error) {
+      console.error("Failed to fetch items:", error);
+      setCategoryTabs(prev => prev.map(tab =>
+        tab.id === tabId ? { ...tab, items: [], isLoadingItems: false } : tab
+      ));
+    }
+  };
+
+  // When a new tab is added and date+type already set, fetch items
+  useEffect(() => {
+    if (!purchaseReqDate || !purchaseType) return;
+    const lastTab = categoryTabs[categoryTabs.length - 1];
+    if (lastTab && lastTab.items.length === 0 && !lastTab.isLoadingItems) {
+      fetchItemsForTab(lastTab.id, lastTab.cat_name);
+    }
+  }, [categoryTabs.length]);
+
+  const updateTabSupplier = (tabId: string, value: string) => {
+    setCategoryTabs(prev => prev.map(tab =>
+      tab.id === tabId ? { ...tab, supplierName: value } : tab
     ));
   };
 
-  const removeItemRow = (index: number) => {
-    if (items.length <= 1) return;
-    setItems(prev => prev.filter((_, i) => i !== index));
+  const updateTabItemQty = (tabId: string, index: number, value: string) => {
+    setCategoryTabs(prev => prev.map(tab =>
+      tab.id === tabId
+        ? { ...tab, items: tab.items.map((item, i) => i === index ? { ...item, received_qty: value } : item) }
+        : tab
+    ));
   };
 
-  const validItems = items.filter(item => item.received_qty && parseFloat(item.received_qty) > 0);
+  const removeTabItem = (tabId: string, index: number) => {
+    setCategoryTabs(prev => prev.map(tab => {
+      if (tab.id !== tabId || tab.items.length <= 1) return tab;
+      return { ...tab, items: tab.items.filter((_, i) => i !== index) };
+    }));
+  };
+
+  const removeCategoryTab = (tabId: string) => {
+    setCategoryTabs(prev => {
+      const updated = prev.filter(t => t.id !== tabId);
+      if (activeTabId === tabId && updated.length > 0) {
+        setActiveTabId(updated[updated.length - 1].id);
+      }
+      return updated;
+    });
+  };
+
+  // Collect all valid items across all tabs
+  const allValidItems = useMemo(() => {
+    const result: { tab: CategoryTab; item: ItemRow }[] = [];
+    categoryTabs.forEach(tab => {
+      tab.items.forEach(item => {
+        if (item.received_qty && parseFloat(item.received_qty) > 0) {
+          result.push({ tab, item });
+        }
+      });
+    });
+    return result;
+  }, [categoryTabs]);
 
   const handleSubmit = async () => {
     if (!purchaseReqDate) {
@@ -173,11 +264,11 @@ const MaterialReceiptPage: React.FC = () => {
       toast({ title: "Validation Error", description: "Please select a Purchase Type", variant: "destructive" });
       return;
     }
-    if (!selectedCategory) {
-      toast({ title: "Validation Error", description: "Please select a Category", variant: "destructive" });
+    if (categoryTabs.length === 0) {
+      toast({ title: "Validation Error", description: "Please add at least one category", variant: "destructive" });
       return;
     }
-    if (validItems.length === 0) {
+    if (allValidItems.length === 0) {
       toast({ title: "Validation Error", description: "Please fill in at least one item with received quantity", variant: "destructive" });
       return;
     }
@@ -189,12 +280,12 @@ const MaterialReceiptPage: React.FC = () => {
 
     try {
       await Promise.all(
-        validItems.map(item =>
+        allValidItems.map(({ tab, item }) =>
           materialReceiptApi.create({
             mat_rec_date: formattedReceiptDate,
             day_req_date: formattedPurchaseReqDate,
-            sup_name: supplierName,
-            cat_name: selectedCategory,
+            sup_name: tab.supplierName,
+            cat_name: tab.cat_name,
             item_name: item.item_name,
             unit_short: item.unit_short,
             mat_rec_qty: item.received_qty,
@@ -203,15 +294,11 @@ const MaterialReceiptPage: React.FC = () => {
         )
       );
 
-      toast({ title: "Success", description: `${validItems.length} material receipt(s) saved successfully` });
-      // Reset form
+      toast({ title: "Success", description: `${allValidItems.length} material receipt(s) saved successfully` });
       setPurchaseReqDate(undefined);
       setPurchaseType("");
-      setSelectedCategory("");
-      setSelectedCatCode("");
-      setSupplierName("");
-      setSupplierOptions([]);
-      setItems([]);
+      setCategoryTabs([]);
+      setActiveTabId("");
     } catch (error) {
       console.error("Failed to save material receipts:", error);
       toast({ title: "Error", description: "Failed to save material receipts", variant: "destructive" });
@@ -234,13 +321,12 @@ const MaterialReceiptPage: React.FC = () => {
             New Material Receipt
           </CardTitle>
           <CardDescription>
-            Select purchase request details and record received item quantities
+            Select purchase request details, add categories, and record received quantities
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Row 1: Receipt Date + Purchase Request Date */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Receipt Date - Current date only */}
+          {/* Row 1: Receipt Date + Purchase Request Date + Purchase Type */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Receipt Date</Label>
               <Button
@@ -253,7 +339,6 @@ const MaterialReceiptPage: React.FC = () => {
               </Button>
             </div>
 
-            {/* Purchase Request Date - unrestricted */}
             <div className="space-y-2">
               <Label>Purchase Request Date</Label>
               <Popover>
@@ -278,7 +363,6 @@ const MaterialReceiptPage: React.FC = () => {
               </Popover>
             </div>
 
-            {/* Purchase Type Dropdown */}
             <div className="space-y-2">
               <Label>Purchase Type</Label>
               <Select value={purchaseType} onValueChange={setPurchaseType}>
@@ -291,16 +375,30 @@ const MaterialReceiptPage: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            {/* Category Name Dropdown */}
-            <div className="space-y-2">
-              <Label>Category Name</Label>
-              <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+          {/* Add Category Section */}
+          <div className="flex items-end gap-3">
+            <div className="space-y-2 flex-1 max-w-sm">
+              <Label>Add Category</Label>
+              <Select
+                value=""
+                onValueChange={addCategoryTab}
+                disabled={isLoadingCategories || availableCategories.length === 0}
+              >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={isLoadingCategories ? "Loading..." : "Select category"} />
+                  <SelectValue
+                    placeholder={
+                      isLoadingCategories
+                        ? "Loading..."
+                        : availableCategories.length === 0
+                          ? "All categories added"
+                          : "Select category to add"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent className="z-50 bg-popover">
-                  {categories.map((cat) => (
+                  {availableCategories.map((cat) => (
                     <SelectItem key={cat.cat_code} value={cat.cat_name}>{cat.cat_name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -308,110 +406,141 @@ const MaterialReceiptPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Supplier Name - dropdown populated from category */}
-          {selectedCategory && (
-            <div className="space-y-2 max-w-sm">
-              <Label>Supplier Name</Label>
-              {isLoadingSupplier ? (
-                <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </div>
-              ) : supplierOptions.length === 0 ? (
-                <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
-                  <span className="text-muted-foreground">No supplier found</span>
-                </div>
-              ) : (
-                <Select value={supplierName} onValueChange={setSupplierName}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select supplier" />
-                  </SelectTrigger>
-                  <SelectContent className="z-50 bg-popover">
-                    {supplierOptions.map((sup) => (
-                      <SelectItem key={sup} value={sup}>{sup}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          )}
+          {/* Category Tabs */}
+          {categoryTabs.length > 0 && (
+            <Tabs value={activeTabId} onValueChange={setActiveTabId} className="w-full">
+              <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-muted/50 p-1">
+                {categoryTabs.map(tab => (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className="relative pr-7 data-[state=active]:bg-background"
+                  >
+                    {tab.cat_name}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeCategoryTab(tab.id); }}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
 
-          {/* Items Table */}
-          {isLoadingItems && (
-            <div className="text-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-              <p className="text-sm text-muted-foreground mt-2">Loading items...</p>
-            </div>
-          )}
+              {categoryTabs.map(tab => (
+                <TabsContent key={tab.id} value={tab.id} className="space-y-4 mt-4">
+                  {/* Supplier */}
+                  <div className="space-y-2 max-w-sm">
+                    <Label>Supplier Name</Label>
+                    {tab.isLoadingSupplier ? (
+                      <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                    ) : tab.supplierError ? (
+                      <div className="h-10 px-3 py-2 rounded-md border border-destructive/50 bg-destructive/10 flex items-center">
+                        <span className="text-sm text-destructive">{tab.supplierError}</span>
+                      </div>
+                    ) : (
+                      <Select value={tab.supplierName} onValueChange={(v) => updateTabSupplier(tab.id, v)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select supplier" />
+                        </SelectTrigger>
+                        <SelectContent className="z-50 bg-popover">
+                          {tab.supplierOptions.map(sup => (
+                            <SelectItem key={sup} value={sup}>{sup}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
 
-          {!isLoadingItems && items.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-muted/50 px-4 py-2">
-                <h4 className="text-sm font-medium">Items in {selectedCategory}</h4>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30">
-                    <TableHead>Item Name</TableHead>
-                    <TableHead className="w-32">Unit of Measure</TableHead>
-                    <TableHead className="w-36">Allocated Qty</TableHead>
-                    <TableHead className="w-40">Received Quantity</TableHead>
-                    <TableHead className="w-20">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item, index) => (
-                    <TableRow key={`${item.item_name}-${index}`}>
-                      <TableCell className="font-medium">{toProperCase(item.item_name)}</TableCell>
-                      <TableCell>{toProperCase(item.unit_short)}</TableCell>
-                      <TableCell>
-                        <span className="font-medium text-primary">{item.day_req_qty || "—"}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Enter qty"
-                          value={item.received_qty}
-                          onChange={(e) => updateReceivedQty(index, e.target.value)}
-                          onKeyDown={numericOnly}
-                          className="h-9"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeItemRow(index)}
-                          disabled={items.length <= 1}
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  {/* Items Table */}
+                  {tab.isLoadingItems && (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                      <p className="text-sm text-muted-foreground mt-2">Loading items...</p>
+                    </div>
+                  )}
 
-          {!isLoadingItems && purchaseReqDate && purchaseType && selectedCategory && items.length === 0 && (
-            <div className="text-center py-4 text-muted-foreground border rounded-lg">
-              No items found for the selected criteria
-            </div>
+                  {!tab.isLoadingItems && tab.items.length > 0 && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="bg-muted/50 px-4 py-2">
+                        <h4 className="text-sm font-medium">Items in {tab.cat_name}</h4>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30">
+                            <TableHead>Item Name</TableHead>
+                            <TableHead className="w-32">Unit of Measure</TableHead>
+                            <TableHead className="w-36">Allocated Qty</TableHead>
+                            <TableHead className="w-40">Received Quantity</TableHead>
+                            <TableHead className="w-20">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {tab.items.map((item, index) => (
+                            <TableRow key={`${item.item_name}-${index}`}>
+                              <TableCell className="font-medium">{toProperCase(item.item_name)}</TableCell>
+                              <TableCell>{toProperCase(item.unit_short)}</TableCell>
+                              <TableCell>
+                                <span className="font-medium text-primary">{item.day_req_qty || "—"}</span>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="Enter qty"
+                                  value={item.received_qty}
+                                  onChange={(e) => updateTabItemQty(tab.id, index, e.target.value)}
+                                  onKeyDown={numericOnly}
+                                  className="h-9"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeTabItem(tab.id, index)}
+                                  disabled={tab.items.length <= 1}
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+
+                  {!tab.isLoadingItems && purchaseReqDate && purchaseType && tab.items.length === 0 && (
+                    <div className="text-center py-4 text-muted-foreground border rounded-lg">
+                      No items found for {tab.cat_name}
+                    </div>
+                  )}
+                </TabsContent>
+              ))}
+            </Tabs>
           )}
 
           {/* Submit Section */}
-          {validItems.length > 0 && (
+          {allValidItems.length > 0 && (
             <div className="flex items-center justify-between pt-4 border-t">
               <p className="text-sm text-muted-foreground">
-                Total items with quantity: <span className="font-medium text-foreground">{validItems.length}</span>
+                Total items with quantity: <span className="font-medium text-foreground">{allValidItems.length}</span>
+                {" across "}
+                <span className="font-medium text-foreground">
+                  {new Set(allValidItems.map(v => v.tab.cat_name)).size}
+                </span>
+                {" category(ies)"}
               </p>
               <Button onClick={handleSubmit} disabled={isSubmitting} className="gap-2">
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save Receipt ({validItems.length} items)
+                Save Receipt ({allValidItems.length} items)
               </Button>
             </div>
           )}
