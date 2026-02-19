@@ -44,7 +44,7 @@ const MaterialReceiptPage: React.FC = () => {
   const [selectedCatCode, setSelectedCatCode] = useState<string>("");
   const [supplierName, setSupplierName] = useState<string>("");
 
-  // Data
+  const [supplierOptions, setSupplierOptions] = useState<string[]>([]);
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [items, setItems] = useState<ItemRow[]>([]);
 
@@ -76,6 +76,7 @@ const MaterialReceiptPage: React.FC = () => {
   useEffect(() => {
     if (!selectedCatCode) {
       setSupplierName("");
+      setSupplierOptions([]);
       return;
     }
     const fetchSupplier = async () => {
@@ -84,10 +85,18 @@ const MaterialReceiptPage: React.FC = () => {
       try {
         const response = await materialReceiptApi.getSuppliersByCategory(selectedCatCode);
         if (response.status === "success" && response.data) {
-          const supName = typeof response.data === "string"
-            ? response.data
-            : response.data.sup_name || (Array.isArray(response.data) && response.data[0]?.sup_name) || "";
-          setSupplierName(supName);
+          // data could be a string sup_name or an object/array
+          const data = response.data;
+          const names: string[] = [];
+          if (typeof data === "string") {
+            names.push(data);
+          } else if (Array.isArray(data)) {
+            data.forEach((d: any) => { if (d.sup_name) names.push(d.sup_name); });
+          } else if (data.sup_name) {
+            names.push(data.sup_name);
+          }
+          setSupplierOptions(names);
+          if (names.length === 1) setSupplierName(names[0]);
         }
       } catch (error) {
         console.error("Failed to fetch supplier:", error);
@@ -196,6 +205,7 @@ const MaterialReceiptPage: React.FC = () => {
       setSelectedCategory("");
       setSelectedCatCode("");
       setSupplierName("");
+      setSupplierOptions([]);
       setItems([]);
     } catch (error) {
       console.error("Failed to save material receipts:", error);
@@ -293,17 +303,30 @@ const MaterialReceiptPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Supplier Name - auto populated */}
+          {/* Supplier Name - dropdown populated from category */}
           {selectedCategory && (
             <div className="space-y-2 max-w-sm">
               <Label>Supplier Name</Label>
-              <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
-                {isLoadingSupplier ? (
+              {isLoadingSupplier ? (
+                <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <span className="font-medium">{supplierName || "No supplier found"}</span>
-                )}
-              </div>
+                </div>
+              ) : supplierOptions.length === 0 ? (
+                <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
+                  <span className="text-muted-foreground">No supplier found</span>
+                </div>
+              ) : (
+                <Select value={supplierName} onValueChange={setSupplierName}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select supplier" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50 bg-popover">
+                    {supplierOptions.map((sup) => (
+                      <SelectItem key={sup} value={sup}>{sup}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           )}
 
