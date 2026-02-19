@@ -627,7 +627,7 @@ const DayRequirementsPage: React.FC = () => {
 
   // ===== RENDER =====
 
-  const dialogTitle = activeTab === "retail" ? "Add Day Requirement - Retail" : "Add Day Requirement - Bulk";
+  const dialogTitle = activeTab === "retail" ? "Add Purchase Request - Retail" : "Add Purchase Request - Bulk";
 
   return (
     <div className="space-y-6" onInput={() => { formInteracted.current = true; }} onChange={() => { formInteracted.current = true; }}>
@@ -638,7 +638,7 @@ const DayRequirementsPage: React.FC = () => {
               <ClipboardList className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <CardTitle className="text-xl">Day Requirements</CardTitle>
+              <CardTitle className="text-xl">Purchase Request</CardTitle>
               <CardDescription>Plan daily ingredient requirements based on recipes</CardDescription>
             </div>
           </div>
@@ -662,7 +662,7 @@ const DayRequirementsPage: React.FC = () => {
                 <DialogTrigger asChild>
                   <Button className="gap-2">
                     <Plus className="w-4 h-4" />
-                    {activeTab === "retail" ? "Add Day Requirement - Retail" : "Add Day Requirement - Bulk"}
+                    {activeTab === "retail" ? "Add Purchase Request - Retail" : "Add Purchase Request - Bulk"}
                   </Button>
                 </DialogTrigger>
                 <DialogContent
@@ -978,7 +978,7 @@ const DayRequirementsPage: React.FC = () => {
                     <TableRow className="bg-muted/50">
                       <TableHead>Date</TableHead>
                       <TableHead>Purchase Type</TableHead>
-                      <TableHead>Purchase ID</TableHead>
+                      <TableHead>Purchase No</TableHead>
                       <TableHead>Recipe Type</TableHead>
                       <TableHead className="text-right">Total Daily Req</TableHead>
                       <TableHead>Created By</TableHead>
@@ -1036,7 +1036,7 @@ const DayRequirementsPage: React.FC = () => {
                     <TableRow className="bg-muted/50">
                       <TableHead>Date</TableHead>
                       <TableHead>Purchase Type</TableHead>
-                      <TableHead>Purchase ID</TableHead>
+                      <TableHead>Purchase No</TableHead>
                       <TableHead>Created By</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
