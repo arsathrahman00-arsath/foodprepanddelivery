@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Download, Loader2, Plus, Save, Utensils } from "lucide-react";
+import { CalendarIcon, Download, Loader2, Plus, Save, Trash2, Utensils } from "lucide-react";
 import { generateAllocationPdf } from "@/lib/generateAllocationPdf";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -51,6 +52,7 @@ interface AllocationRow {
   masjid_name: string;
   req_qty: number;
   alloc_qty: string;
+  isManual?: boolean;
 }
 
 const FoodAllocationPage: React.FC = () => {
@@ -186,10 +188,35 @@ const FoodAllocationPage: React.FC = () => {
   // Validation: check if any row has alloc_qty > available qty
   const hasAllocExceedsAvail = remainingQty < 0;
 
+  const addNewRow = () => {
+    formInteracted.current = true;
+    setRows(prev => [...prev, {
+      id: crypto.randomUUID(),
+      recipe_type: recipes.length === 1 ? recipes[0].recipe_type : "",
+      recipe_code: recipes.length === 1 ? recipes[0].recipe_code : "",
+      masjid_name: "",
+      req_qty: 0,
+      alloc_qty: "",
+      isManual: true,
+    }]);
+  };
+
+  const removeRow = (id: string) => {
+    setRows(prev => prev.filter(row => row.id !== id));
+  };
+
   const updateRow = (id: string, field: keyof AllocationRow, value: string | number) => {
     formInteracted.current = true;
     setRows(prev => prev.map(row => {
       if (row.id !== id) return row;
+      if (field === "masjid_name") {
+        const found = masjidRequirements.find(m => m.masjid_name === value);
+        return { ...row, masjid_name: value as string, req_qty: found ? found.req_qty : row.req_qty };
+      }
+      if (field === "recipe_type") {
+        const found = recipes.find(r => r.recipe_type === value);
+        return { ...row, recipe_type: value as string, recipe_code: found ? found.recipe_code : "" };
+      }
       return { ...row, [field]: value };
     }));
   };
@@ -327,19 +354,53 @@ const FoodAllocationPage: React.FC = () => {
                               <TableHead>Location</TableHead>
                               <TableHead className="text-right">Req Qty</TableHead>
                               <TableHead className="text-right">Allocate Qty</TableHead>
+                              <TableHead className="w-10"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {rows.map((row) => (
                               <TableRow key={row.id}>
                                 <TableCell>
-                                  <span className="text-sm font-medium">{toProperCase(row.recipe_type || (recipes.length === 1 ? recipes[0].recipe_type : ""))}</span>
+                                  {row.isManual ? (
+                                    <Select value={row.recipe_type} onValueChange={(v) => updateRow(row.id, "recipe_type", v)}>
+                                      <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {recipes.map(r => (
+                                          <SelectItem key={r.recipe_type} value={r.recipe_type}>{toProperCase(r.recipe_type)}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <span className="text-sm font-medium">{toProperCase(row.recipe_type || (recipes.length === 1 ? recipes[0].recipe_type : ""))}</span>
+                                  )}
                                 </TableCell>
                                 <TableCell>
-                                  <span className="text-sm font-medium">{toProperCase(row.masjid_name)}</span>
+                                  {row.isManual ? (
+                                    <Select value={row.masjid_name} onValueChange={(v) => updateRow(row.id, "masjid_name", v)}>
+                                      <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                                      <SelectContent>
+                                        {masjidRequirements.map(m => (
+                                          <SelectItem key={m.masjid_name} value={m.masjid_name}>{toProperCase(m.masjid_name)}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <span className="text-sm font-medium">{toProperCase(row.masjid_name)}</span>
+                                  )}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <span className="text-sm font-medium">{row.req_qty}</span>
+                                  {row.isManual ? (
+                                    <Input
+                                      type="number"
+                                      placeholder="Qty"
+                                      value={row.req_qty || ""}
+                                      onChange={(e) => updateRow(row.id, "req_qty", Number(e.target.value))}
+                                      onKeyDown={numericOnly}
+                                      className="h-9 text-right"
+                                    />
+                                  ) : (
+                                    <span className="text-sm font-medium">{row.req_qty}</span>
+                                  )}
                                 </TableCell>
                                 <TableCell>
                                   <Input
@@ -351,11 +412,22 @@ const FoodAllocationPage: React.FC = () => {
                                     className="h-9 text-right"
                                   />
                                 </TableCell>
+                                <TableCell className="w-10">
+                                  {row.isManual && (
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeRow(row.id)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
                         </Table>
                       </div>
+
+                      <Button variant="outline" onClick={addNewRow} className="w-full gap-2" disabled={!selectedDate}>
+                        <Plus className="h-4 w-4" /> Add New Entry
+                      </Button>
 
                       <Button onClick={handleSubmit} disabled={isSubmitting || hasAllocExceedsAvail} className="w-full gap-2">
                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -365,7 +437,12 @@ const FoodAllocationPage: React.FC = () => {
                   )}
 
                   {!isLoadingDateData && selectedDate && autoPopulated && rows.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">All locations already have allocations for this date.</p>
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground text-center py-4">All locations already have allocations for this date.</p>
+                      <Button variant="outline" onClick={addNewRow} className="w-full gap-2">
+                        <Plus className="h-4 w-4" /> Add New Entry
+                      </Button>
+                    </div>
                   )}
                 </div>
               </DialogContent>
